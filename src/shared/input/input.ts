@@ -10,6 +10,7 @@ export type UiAction =
   | 'loaderPrev'
   | 'loaderNext'
   | 'kindPin'
+  | 'kindOpp'
   | 'kindYellow'
   | 'kindCup'
   | 'kindPair'
@@ -28,7 +29,7 @@ export const CONTROLS: { action: string; keys: string; pad: string }[] = [
   { action: 'Goal auto-align (hold)', keys: 'V', pad: 'Down' },
   { action: 'Load next Match Load', keys: 'G', pad: 'Up' },
   { action: 'Choose Loader', keys: '[ / ]', pad: 'Left / Right' },
-  { action: 'Load type: alliance Pin / yellow Pin / Cup / nested pair', keys: '1 / 2 / 3 / 4', pad: '—' },
+  { action: 'Load type: alliance Pin / yellow Pin / Cup / nested pair / other-color Pin', keys: '1 / 2 / 3 / 4 / 5', pad: '—' },
   { action: 'Cycle camera', keys: 'C', pad: 'R3' },
   { action: 'Toggle 2D view', keys: 'M', pad: 'L3' },
   { action: 'Spawn object (Free Drive)', keys: 'P', pad: '—' },
@@ -49,6 +50,7 @@ const KEY_ACTIONS: Record<string, UiAction> = {
   Digit2: 'kindYellow',
   Digit3: 'kindCup',
   Digit4: 'kindPair',
+  Digit5: 'kindOpp',
   KeyP: 'spawn',
   KeyM: 'view2d',
 };

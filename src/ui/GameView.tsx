@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { makeBot } from '../bots';
+import { checkLegality } from '../engine/legality';
 import type { GameDefinition, ModeDef } from '../engine/types';
 import { rankingPoints } from '../games/pinnacle/scoring';
 import { commitRun, saveReplay } from '../shared/records';
@@ -100,6 +101,7 @@ export default function GameView({ game, mode, entries, settings, seed, onExit, 
         )}
         <div className="hud-mode">
           {game.name} · {mode.label}
+          {!checkLegality(entries[0].spec, game.builder, game.possession).ok && <span className="warn"> · illegal build (Free Drive only)</span>}
         </div>
       </div>
       {hud && (

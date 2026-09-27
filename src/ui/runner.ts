@@ -11,8 +11,8 @@ import { CAMERA_LABELS, CAMERA_MODES, type CameraMode, type WorldInfo, type ZRen
 import type { Settings } from './settings';
 
 /** Match-load choices for the human player. */
-export type LoadKind = 'pin' | 'yellow' | 'cup' | 'pair';
-export const LOAD_LABELS: Record<LoadKind, string> = { pin: 'Alliance Pin', yellow: 'Yellow Pin', cup: 'Cup', pair: 'Cup + Pin (nested)' };
+export type LoadKind = 'pin' | 'opp' | 'yellow' | 'cup' | 'pair';
+export const LOAD_LABELS: Record<LoadKind, string> = { pin: 'Alliance Pin', opp: 'Other-color Pin', yellow: 'Yellow Pin', cup: 'Cup', pair: 'Cup + Pin (nested)' };
 
 export interface HudState {
   phase: Phase;
@@ -158,6 +158,9 @@ export class GameRunner {
       case 'kindPin':
         this.loadKind = 'pin';
         break;
+      case 'kindOpp':
+        this.loadKind = 'opp';
+        break;
       case 'kindYellow':
         this.loadKind = 'yellow';
         break;
@@ -175,6 +178,7 @@ export class GameRunner {
 
   private spawnPinType(): PinType {
     if (this.loadKind === 'yellow') return 'YY';
+    if (this.loadKind === 'opp') return this.alliance === 'red' ? 'BY' : 'RY';
     return this.alliance === 'red' ? 'RY' : 'BY';
   }
 
@@ -183,7 +187,10 @@ export class GameRunner {
     const def = this.game.field.loaders[this.loaderIndex];
     if (!def) return;
     const own: PinType = def.alliance === 'red' ? 'RY' : 'BY';
-    const pin: PinType | null = this.loadKind === 'cup' ? null : this.loadKind === 'yellow' ? 'YY' : this.loadKind === 'pair' ? (this.hasSupply(def.alliance, own) ? own : 'YY') : own;
+    const opp: PinType = def.alliance === 'red' ? 'BY' : 'RY';
+    const k = this.loadKind;
+    const pin: PinType | null =
+      k === 'cup' ? null : k === 'yellow' ? 'YY' : k === 'opp' ? opp : k === 'pair' ? ([own, 'YY', opp] as PinType[]).find((t) => this.hasSupply(def.alliance, t)) ?? own : own;
     this.pendingHp.push({ alliance: this.alliance, loader: this.loaderIndex, pin, cup: this.loadKind === 'cup' || this.loadKind === 'pair' });
   }
 
