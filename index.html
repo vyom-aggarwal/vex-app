@@ -3,17 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Browser driver-practice simulator for the VEX V5 Robotics Competition 2026-27 game Override (unofficial)." />
+    <title>ZDrive: VEX Driving Simulator</title>
+    <meta name="description" content="ZDrive is a free 3D driving simulator for VEX V5RC Override and RECF Pinnacle. Build a robot, drive full matches against bots, and track your records." />
+    <meta property="og:title" content="ZDrive: VEX Driving Simulator" />
+    <meta property="og:description" content="ZDrive is a free 3D driving simulator for VEX V5RC Override and RECF Pinnacle. Build a robot, drive full matches against bots, and track your records." />
+    <meta property="og:type" content="website" />
     <meta name="theme-color" content="#121418" />
-    <title>Override Sim · VEX V5 driver practice</title>
-    <link rel="stylesheet" href="/src/style.css" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body>
-    <canvas id="field" aria-label="Field view"></canvas>
-    <div id="hud" class="hidden"></div>
-    <div id="overlay" class="hidden"></div>
-    <div id="menu" class="hidden"></div>
-    <noscript>Override Sim needs JavaScript.</noscript>
-    <script type="module" src="/src/main.ts"></script>
+    <div id="root"></div>
+    <noscript>ZDrive needs JavaScript.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
