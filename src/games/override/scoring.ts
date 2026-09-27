@@ -75,7 +75,7 @@ export function scoreOverride(input: ScoreInput, modeId: ModeId): ScoreResult {
       }
   lines.push({ label: skills ? 'Red / blue halves' : 'Alliance-colored halves', ...colored });
   lines.push({ label: 'Yellow halves', ...yellow });
-  const mid = input.excludeMidfield ? { red: 0, blue: 0 } : midfieldCounts(input);
+  const mid = input.excludeMidfield || input.hideEndStates ? { red: 0, blue: 0 } : midfieldCounts(input);
   const midPts = skills ? { red: (mid.red + mid.blue) * PTS.midfield, blue: 0 } : { red: mid.red * PTS.midfield, blue: mid.blue * PTS.midfield };
   lines.push({ label: 'Robots in the Midfield', ...midPts });
   const bonus = !skills && input.auton ? input.auton.bonus : { red: 0, blue: 0 };

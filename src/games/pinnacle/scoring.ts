@@ -113,7 +113,9 @@ export function scorePinnacle(input: ScoreInput, modeId: ModeId): ScoreResult {
     goalPts.blue += p.blue;
   }
   lines.push({ label: 'Goals', ...goalPts });
-  const park = { red: parkedCount(input, 'red', LOADERS.red) * PTS.park, blue: parkedCount(input, 'blue', LOADERS.blue) * PTS.park };
+  const park = input.hideEndStates
+    ? { red: 0, blue: 0 }
+    : { red: parkedCount(input, 'red', LOADERS.red) * PTS.park, blue: parkedCount(input, 'blue', LOADERS.blue) * PTS.park };
   lines.push({ label: 'Parked', ...park });
   const red = goalPts.red + park.red;
   const blue = goalPts.blue + park.blue;

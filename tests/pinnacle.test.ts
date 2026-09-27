@@ -111,3 +111,16 @@ test('Pinnacle alliance timer: 15 s Autonomous inside 120 s', async () => {
   run(sim, 105 * 120);
   eq(sim.phase, 'post');
 });
+
+test('Parking shows live only in the endgame but always counts in the final score', async () => {
+  const sim = await makeSim(PINNACLE, 'alliance');
+  run(sim, 5);
+  eq([sim.score().red, sim.score().blue], [0, 0], 'pre-match: nothing live yet');
+  sim.start();
+  run(sim, 100 * 120);
+  const live = sim.score();
+  ok(live.red >= 42 && live.blue >= 42, `endgame: parked robots shown (${live.red}-${live.blue})`);
+  run(sim, 20 * 120 + 5);
+  eq(sim.phase, 'post');
+  ok(sim.state.final!.lines.find((l) => l.label === 'Parked')!.red === 42, 'final: two red robots parked on two Loaders');
+});

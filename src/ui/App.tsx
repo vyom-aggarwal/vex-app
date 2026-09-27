@@ -71,7 +71,12 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    const on = () => setRoute(parse(location.pathname));
+    // Any navigation (including the browser Back button) leaves a running match or replay.
+    const on = () => {
+      setLaunch(null);
+      setReplay(null);
+      setRoute(parse(location.pathname));
+    };
     window.addEventListener('popstate', on);
     return () => window.removeEventListener('popstate', on);
   }, []);

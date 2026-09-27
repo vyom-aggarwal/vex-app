@@ -205,6 +205,11 @@ export interface ScoreInput {
   worlds?: boolean;
   /** Exclude Midfield-position-dependent points (Override Autonomous Bonus). */
   excludeMidfield?: boolean;
+  /**
+   * Live display before the endgame: leave out points that only exist "at the end of the match"
+   * (robots parked / in the Midfield), so the scoreboard doesn't show them from the start.
+   */
+  hideEndStates?: boolean;
 }
 
 export interface AutonResult {

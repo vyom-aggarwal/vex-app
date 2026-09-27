@@ -1607,6 +1607,7 @@ export class Sim {
       redCards: this.state.ref.redCards,
       worlds: this.worlds,
       excludeMidfield,
+      hideEndStates: this.phase === 'pre' || this.phase === 'auton' || this.phase === 'pause' || (this.phase === 'driver' && !this.endgame),
     };
   }
 

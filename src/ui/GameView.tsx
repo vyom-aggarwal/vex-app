@@ -33,7 +33,8 @@ export default function GameView({ game, mode, entries, settings, seed, onExit, 
   const [done, setDone] = useState<(FinishInfo & { best: boolean }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const me = entries[0];
-  const k = (a: keyof Settings['bindings']['keys']) => settings.bindings.keys[a].map(keyLabel).join(' / ') || '—';
+  /** Primary key for an action, for on-screen hints. */
+  const k = (a: keyof Settings['bindings']['keys']) => (settings.bindings.keys[a][0] ? keyLabel(settings.bindings.keys[a][0]) : '—');
 
   useEffect(() => {
     let live = true;
