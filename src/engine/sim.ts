@@ -475,11 +475,8 @@ export class Sim {
       // Preload: goes straight into the robot (claw if possible, else storage).
       const pre = this.mode.preload[e.alliance];
       if (pre) {
-        const pool = this.state.objects.find((o) => o.loc === 'supply' && o.kind === 'pin' && o.pin === pre && o.supply === e.alliance);
-        const id = pool ? pool.id : this.addObject('pin', pre, { x: 0, y: 0, z: -5 }, { x: 0, y: 0, z: 0, w: 1 }, 'supply');
+        const id = this.addObject('pin', pre, { x: 0, y: 0, z: -5 }, { x: 0, y: 0, z: 0, w: 1 });
         const o = this.state.objects[id];
-        o.supply = null;
-        this.show(o);
         const slot = rs.slots.findIndex((_, k) => this.slotKind(rs, k) !== 'cup');
         o.zDown = false;
         if (slot >= 0) this.hold(rs, slot, o);

@@ -245,8 +245,8 @@ export interface DerivedStats {
 function settle(m: DriveModel, fwd: number, strafe: number, turn: number): Planar {
   const p: Planar = { x: 0, y: 0, th: 0, vx: 0, vy: 0, w: 0 };
   const volts = groupVoltages(m, fwd, strafe, turn);
-  const dt = 1 / 240;
-  for (let i = 0; i < 240 * 4; i++) integratePlanar(m, p, volts, dt);
+  const dt = 1 / 120;
+  for (let i = 0; i < 120 * 4; i++) integratePlanar(m, p, volts, dt);
   return p;
 }
 
