@@ -96,12 +96,39 @@ export function makeBot(style: BotStyle, level: BotLevel): Controller {
       let aim = T;
       // Leave an opponent Load Zone first.
       if (inOppZone()) aim = { x: P.x * 0.5, y: P.y * 0.5 };
-      // Hard keep-out around goals this robot may never touch.
-      const reach = spec.chassis.length / 2 + 6;
+      // Hard keep-out around goals this robot may never touch: retreat straight away without turning
+      // (a tank turning in place next to a goal sweeps its corners into it).
+      const halfDiag = Math.hypot(spec.chassis.length, spec.chassis.width) / 2;
       for (const g of game.field.goals) {
         if (!forbidden.has(g.id)) continue;
         const d = Math.hypot(P.x - g.x, P.y - g.y);
-        if (d < reach + 7) aim = { x: P.x + ((P.x - g.x) / (d || 1)) * 20, y: P.y + ((P.y - g.y) / (d || 1)) * 20 };
+        if (d < halfDiag + 5) {
+          // Away from the goal, bent toward the field center so the retreat never pins us on a wall.
+          const pc = Math.hypot(P.x, P.y) || 1;
+          const away = Math.atan2((P.y - g.y) / (d || 1) - (0.8 * P.y) / pc, (P.x - g.x) / (d || 1) - (0.8 * P.x) / pc);
+          if (holo) {
+            cmd.field = { x: Math.cos(away) * 0.6, y: Math.sin(away) * 0.6 };
+            cmd.turn = 0;
+          } else {
+            cmd.fwd = Math.cos(away - pose.th) >= 0 ? 0.6 : -0.6;
+            cmd.turn = 0;
+          }
+          return 99;
+        }
+        // Slow zone: never arrive at a forbidden goal with momentum.
+        if (d < halfDiag + 16) slow = Math.min(slow, 0.35);
+      }
+      // Autonomous: keep the whole footprint on our side of the line.
+      if (line && auton) {
+        const sgn = me.alliance === 'red' ? 1 : -1;
+        const side = sgn * (line.n.x * P.x + line.n.y * P.y - line.c);
+        if (side < halfDiag + 3) aim = { x: P.x + line.n.x * sgn * 20, y: P.y + line.n.y * sgn * 20 };
+        const tSide = sgn * (line.n.x * T.x + line.n.y * T.y - line.c);
+        if (tSide < halfDiag + 3 && aim === T) {
+          // Clamp the target back onto our side.
+          const push = halfDiag + 3 - tSide;
+          aim = { x: T.x + line.n.x * sgn * push, y: T.y + line.n.y * sgn * push };
+        }
       }
       for (const g of game.field.goals) {
         if (g.id === targetGoal || aim !== T) continue;
@@ -261,10 +288,17 @@ export function makeBot(style: BotStyle, level: BotLevel): Controller {
         cmd.fwd = -0.6;
       } else {
         const theirZones = game.field.loaders.filter((l) => l.alliance === other(me.alliance) && l.zone).map((l) => l.zone!);
-        const nearForbidden = game.field.goals.some((g) => forbidden.has(g.id) && Math.hypot(g.x - Q.x, g.y - Q.y) < spec.chassis.length / 2 + 20);
-        const inZone = theirZones.some((z) => pointInPoly(Q, z)) || nearForbidden;
-        if (okPoint(Q) && !inZone) drive(Q, spec.chassis.length / 2 + 6, 0.9);
-        else if (inZone) drive({ x: Q.x * 0.6, y: Q.y * 0.6 }, 0, 0.6);
+        const nearForbidden = game.field.goals.some((g) => forbidden.has(g.id) && Math.hypot(g.x - Q.x, g.y - Q.y) < 32);
+        const qfp = sim.facts[t.robot]?.footprint;
+        // Stay clear while any part of them is in (or within a few inches of) their Load Zone.
+        const inZone = theirZones.some((z) => pointInPoly(Q, z) || (qfp ? polysOverlap(qfp, z.map((v) => ({ x: v.x * 0.9, y: v.y * 0.9 }))) : false));
+        if (okPoint(Q) && !inZone && !nearForbidden) drive(Q, spec.chassis.length / 2 + 6, 0.9);
+        else {
+          // Guard from neutral ground: slide toward the field center until clear of their goals.
+          let G2 = { x: Q.x * 0.5, y: Q.y * 0.5 };
+          for (let k = 0; k < 6 && game.field.goals.some((g) => forbidden.has(g.id) && Math.hypot(g.x - G2.x, g.y - G2.y) < 32); k++) G2 = { x: G2.x * 0.7, y: G2.y * 0.7 };
+          drive(G2, 0, 0.6);
+        }
       }
     }
 

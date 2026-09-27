@@ -58,6 +58,7 @@ import {
   quatMul,
   quatYaw,
   robotGroups,
+  robotPlateGroups,
   upAxis,
   yawOf,
   type Quat,
@@ -186,6 +187,10 @@ const packButtons = (c: RobotCommand): number =>
 
 /** Robot hitting a stack faster than this (m/s) knocks it apart from the struck level up. EST. */
 export const BREAK_SPEED = 0.8;
+/** Held pieces ride this far (in) above the effector point so they never scrape the tiles. */
+const HOLD_LIFT = 0.35;
+/** Contact tolerance for rule/touch detection (m, ≈0.15 in). */
+const TOUCH_SLOP = 0.004;
 /** Detent spring as a velocity blend (stable for light bodies): ω → gain·(target − angle). */
 const DETENT_GAIN = 10;
 const DETENT_BLEND = 0.25;
@@ -421,11 +426,13 @@ export class Sim {
       const cy = st.y + Math.sin(st.th * DEG) * off;
       const body = this.world.createRigidBody(
         RAPIER.RigidBodyDesc.dynamic()
-          .setTranslation(inToM(cx), inToM(cy), 0.002)
+          .setTranslation(inToM(cx), inToM(cy), 0)
           .setRotation(quatYaw(st.th * DEG))
+          // Drive robots stay on the tiles: no pitch/roll and no vertical motion, so nothing can
+          // pop them into the air (the chassis collider floats at CLEARANCE above the floor).
           .enabledRotations(false, false, true)
-          .setCanSleep(false)
-          .setCcdEnabled(true),
+          .enabledTranslations(true, true, false)
+          .setCanSleep(false),
       );
       const hL = inToM(spec.chassis.length / 2);
       const hW = inToM(spec.chassis.width / 2);
@@ -461,7 +468,7 @@ export class Sim {
           .setMass(0.01)
           .setFriction(0)
           .setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min)
-          .setCollisionGroups(grp),
+          .setCollisionGroups(robotPlateGroups(i)),
         body,
         { t: 'robot', i },
       );
@@ -617,6 +624,7 @@ export class Sim {
     this.syncCarried();
     this.world.step();
     this.postStep();
+    this.pinRobots();
 
     const ev = tickTimer(s.timer, this.mode.timing);
     if (ev === 'autonEnd') {
@@ -953,7 +961,7 @@ export class Sim {
     const e = effectorPoint(spec, r.lift);
     const kind = this.slotKind(r, k);
     const yOff = kind === 'pin' ? 1.8 : kind === 'cup' ? -1.8 : 0;
-    const pos = this.robotPoint(r.index, e.x, yOff, e.z);
+    const pos = this.robotPoint(r.index, e.x, yOff, e.z + HOLD_LIFT);
     const th = this.robotPose(r.index).th;
     const o = this.obj(r.slots[k]);
     const wristRot = quatAxisAngle({ x: 1, y: 0, z: 0 }, Math.PI * r.wrist);
@@ -1312,16 +1320,37 @@ export class Sim {
   // After each physics step: contacts, stack breaks, free-object nesting, unit breakup
   // -------------------------------------------------------------------------------------------
 
-  private touching(c1: Collider, c2: Collider): boolean {
-    let hit = false;
-    this.world.contactPair(c1, c2, (m) => {
-      for (let i = 0; i < m.numContacts(); i++) if (m.contactDist(i) < 0.004) hit = true;
-    });
-    return hit;
+  private touchShapes = new Map<number, InstanceType<typeof RAPIER.Cuboid>>();
+
+  /**
+   * Everything a robot collider touches: an exact overlap query with the collider inflated by
+   * TOUCH_SLOP. (Solver manifolds report speculative distances, so they can't be trusted for this.)
+   */
+  private touchingColliders(c: Collider, body: RigidBody, f: (other: Collider) => void): void {
+    let shape = this.touchShapes.get(c.handle);
+    if (!shape) {
+      const he = c.halfExtents() ?? { x: 0, y: 0, z: 0 };
+      shape = new RAPIER.Cuboid(he.x + TOUCH_SLOP, he.y + TOUCH_SLOP, he.z + TOUCH_SLOP);
+      this.touchShapes.set(c.handle, shape);
+    }
+    this.world.intersectionsWithShape(
+      c.translation(),
+      c.rotation(),
+      shape,
+      (other) => {
+        f(other);
+        return true;
+      },
+      undefined,
+      c.collisionGroups(),
+      undefined,
+      body,
+    );
   }
 
   private postStep(): void {
     const s = this.state;
+
     const facts: RobotFacts[] = [];
     const struck: { goal: string; level: number; robot: number }[] = [];
     const objIndex = new Map<number, number>();
@@ -1337,10 +1366,9 @@ export class Sim {
       const robots = new Set<number>();
       for (let k = 0; k < b.numColliders(); k++) {
         const col = b.collider(k);
-        this.world.contactPairsWith(col, (other) => {
+        this.touchingColliders(col, b, (other) => {
           const ow = this.owners.get(other.handle);
           if (!ow || ow.t === 'floor') return;
-          if (!this.touching(col, other)) return;
           if (ow.t === 'robot') robots.add(ow.i);
           else if (ow.t === 'obj') {
             objects.add(ow.id);
@@ -1389,6 +1417,8 @@ export class Sim {
         objects: [...objects],
         robots: [...robots],
         speed,
+        vx: p.vx,
+        vy: p.vy,
         effort: Math.min(1, Math.hypot(cmd.fwd, cmd.strafe, cmd.turn, cmd.field ? Math.hypot(cmd.field.x, cmd.field.y) : 0)),
         holding: [...r.slots.filter((x) => x >= 0), ...r.store],
       });
@@ -1425,6 +1455,20 @@ export class Sim {
       o.zDown = up.z < 0;
       const goal = this.nestTarget(o.id, { x: t.x, y: t.y, z: t.z });
       if (goal) this.appendUnit(goal, o.id, o.lastRobot >= 0 ? o.lastRobot : null);
+    }
+  }
+
+  /**
+   * Pin robots to the tile plane. Their Z/roll/pitch are locked, but contact position correction
+   * against a goal's edge can still nudge them; undo that exactly (after contacts have been read).
+   */
+  private pinRobots(): void {
+    for (const r of this.state.robots) {
+      const b = this.body(r.body);
+      const t = b.translation();
+      if (t.z !== 0) b.setTranslation({ x: t.x, y: t.y, z: 0 }, false);
+      const q = b.rotation();
+      if (q.x !== 0 || q.y !== 0) b.setRotation(quatYaw(yawOf(q)), false);
     }
   }
 

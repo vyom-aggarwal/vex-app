@@ -249,6 +249,9 @@ export interface RobotFacts {
   /** Robot indices touched this tick. */
   robots: number[];
   speed: number;
+  /** Velocity (m/s, field axes). */
+  vx: number;
+  vy: number;
   /** Commanded drive magnitude 0..1. */
   effort: number;
   holding: number[];

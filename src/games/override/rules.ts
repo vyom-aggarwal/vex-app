@@ -123,7 +123,10 @@ const SG13: RuleCheck = {
       const call = (text: string) => out.push({ rule: 'SG13', robot: r.index, alliance: r.alliance, level: 'foul', text });
       for (const j of r.robots) {
         const b = ctx.robots.find((x) => x.index === j)!;
-        if (b.alliance === opp && zones(opp).some((z) => polysOverlap(b.footprint, z))) call('Contacted an opponent in its Load Zone');
+        if (b.alliance !== opp || !zones(opp).some((z) => polysOverlap(b.footprint, z))) continue;
+        // Only the robot driving into the contact is called, not the one being rammed.
+        const toward = ((b.x - r.x) * r.vx + (b.y - r.y) * r.vy) / (Math.hypot(b.x - r.x, b.y - r.y) || 1);
+        if (toward > 0.1) call('Contacted an opponent in its Load Zone');
       }
       const key = `linger${r.index}`;
       if (zones(opp).some((z) => polysOverlap(r.footprint, z))) {

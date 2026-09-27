@@ -183,3 +183,26 @@ test('Robot export/import round-trip', () => {
   eq(importRobot('{"v":1}').ok, false, 'rejects raw JSON');
   eq(importRobot('ZDRIVE1:@@@').ok, false, 'rejects garbage');
 });
+
+test('Robots never leave the tiles and pieces never get launched', async () => {
+  const PIN = (await import('../src/games/pinnacle')).PINNACLE;
+  for (const game of [OVERRIDE, PIN]) {
+    for (const spec of presetsFor(game.id)) {
+      const sim = await makeSim(game, 'free', { specs: [spec] });
+      let zMax = 0;
+      let vObj = 0;
+      for (let t = 0; t < 120 * 12; t++) {
+        sim.step({ cmds: [cmd({ fwd: Math.sin(t / 150) > -0.3 ? 1 : -1, turn: Math.sin(t / 97) * 0.6, lift: t % 900 < 300 ? 1 : t % 900 < 600 ? -1 : 0, intake: 1 })], hp: [] });
+        zMax = Math.max(zMax, Math.abs(sim.body(sim.state.robots[0].body).translation().z));
+        for (const o of sim.state.objects) {
+          if (o.loc !== 'field') continue;
+          const v = sim.body(o.body).linvel();
+          vObj = Math.max(vObj, Math.hypot(v.x, v.y, v.z));
+        }
+      }
+      ok(zMax < 1e-6, `${game.id} ${spec.name}: chassis left the tiles by ${zMax} m`);
+      ok(vObj < 4, `${game.id} ${spec.name}: a piece reached ${vObj.toFixed(1)} m/s`);
+      sim.dispose();
+    }
+  }
+});

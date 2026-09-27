@@ -30,6 +30,8 @@ export const G_STACKED = groups(GRP.stacked, GRP.obj | GRP.robotsAll);
 export const G_HELD = groups(GRP.obj, GRP.obj | GRP.detent);
 export const G_NONE = groups(0, 0);
 export const G_DETENT = groups(GRP.detent, 0xffff & ~GRP.field);
+/** The lift's effector collider only pushes Toggles/Rollers; it must never lever the chassis off goals or pieces. */
+export const robotPlateGroups = (i: number): number => groups(GRP.robot(i), GRP.detent);
 export const robotGroups = (i: number): number =>
   groups(GRP.robot(i), GRP.field | GRP.obj | GRP.stacked | GRP.detent | (GRP.robotsAll & ~GRP.robot(i)));
 
