@@ -1,0 +1,125 @@
+import * as THREE from 'three';
+import { buildDriveModel } from '../engine/drivetrain';
+import { CHASSIS_BASE, CLEARANCE, armPivot, effectorPoint, liftRange } from '../engine/mechanism';
+import type { Alliance, RobotSpec } from '../shared/types';
+import { inToM } from '../shared/units';
+import { COLORS, mat } from './materials';
+
+/** A robot built from its spec, in the engine robot frame (+x forward, +y left, +z up), meters. */
+export class RobotMesh {
+  readonly group = new THREE.Group();
+  private carriage = new THREE.Group();
+  private arm: THREE.Mesh | null = null;
+  private claw = new THREE.Group();
+  private spec: RobotSpec;
+
+  constructor(spec: RobotSpec, alliance: Alliance | null) {
+    this.spec = spec;
+    const m = (w: number, d: number, h: number, color: number, x: number, y: number, z: number, o: { metal?: number } = {}): THREE.Mesh => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(inToM(w), inToM(d), inToM(h)), mat(color, { metal: o.metal ?? 0.3, rough: 0.55 }));
+      mesh.position.set(inToM(x), inToM(y), inToM(z));
+      return mesh;
+    };
+    const c = spec.chassis;
+    const baseH = CHASSIS_BASE - CLEARANCE;
+    const team = alliance ? COLORS[alliance] : 0x8a93a0;
+    // Drive base: side rails, cross members, bumpers in alliance color.
+    this.group.add(m(c.length, 1, baseH, COLORS.metal, 0, c.width / 2 - 0.5, CLEARANCE + baseH / 2));
+    this.group.add(m(c.length, 1, baseH, COLORS.metal, 0, -c.width / 2 + 0.5, CLEARANCE + baseH / 2));
+    this.group.add(m(1, c.width - 2, 1, COLORS.darkMetal, c.length / 2 - 1.5, 0, CLEARANCE + 1));
+    this.group.add(m(1, c.width - 2, 1, COLORS.darkMetal, -c.length / 2 + 1.5, 0, CLEARANCE + 1));
+    this.group.add(m(c.length - 2, c.width - 2, 0.25, COLORS.darkMetal, 0, 0, CHASSIS_BASE - 0.3));
+    this.group.add(m(c.length + 0.4, 0.6, 2.2, team, 0, c.width / 2 + 0.3, 2.3));
+    this.group.add(m(c.length + 0.4, 0.6, 2.2, team, 0, -c.width / 2 - 0.3, 2.3));
+    // Wheels
+    const dm = buildDriveModel(spec);
+    const r = spec.drive.wheelDia / 2;
+    const wheelGeo = new THREE.CylinderGeometry(inToM(r), inToM(r), inToM(1.1), 18);
+    for (const w of dm.wheels) {
+      const mesh = new THREE.Mesh(wheelGeo, mat(w.omni ? COLORS.omni : COLORS.rubber, { rough: 0.9 }));
+      // Cylinder axis is +y; the axle is perpendicular to the rolling direction.
+      mesh.rotation.z = w.dir;
+      const inset = Math.abs(w.y) > 0.01 ? Math.sign(w.y) * -0.6 : 0;
+      mesh.position.set(w.x, w.y + inToM(inset), inToM(r));
+      this.group.add(mesh);
+    }
+    // Tower
+    const towerH = c.height - CHASSIS_BASE;
+    if (towerH > 1) {
+      this.group.add(m(1, 1, towerH, COLORS.metal, -c.length * 0.25, c.width * 0.33, CHASSIS_BASE + towerH / 2));
+      this.group.add(m(1, 1, towerH, COLORS.metal, -c.length * 0.25, -c.width * 0.33, CHASSIS_BASE + towerH / 2));
+      this.group.add(m(1.2, c.width * 0.7, 1, COLORS.darkMetal, -c.length * 0.25, 0, c.height - 0.5));
+      // Brain + battery
+      this.group.add(m(4, 3, 1.2, COLORS.black, -c.length * 0.1, 0, CHASSIS_BASE + 0.6));
+      this.group.add(m(3, 2.6, 1.2, team, -c.length * 0.35, 0, CHASSIS_BASE + 0.6));
+    }
+    // Lift
+    const lt = spec.lift.type;
+    const { zMax } = liftRange(spec);
+    if (lt === 'dr4b' || lt === 'cascade' || lt === 'sixbar') {
+      const x = c.length / 2 - 1;
+      for (const s of [1, -1]) this.group.add(m(1, 1, Math.max(4, zMax * 0.55), COLORS.metal, x - 1.5, (s * c.width) / 2.6, CHASSIS_BASE + zMax * 0.27));
+    }
+    const piv = armPivot(spec);
+    if (piv) {
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(inToM(piv.r), inToM(1), inToM(1)), mat(COLORS.metal, { metal: 0.4 }));
+      arm.geometry.translate(inToM(piv.r / 2), 0, 0);
+      arm.position.set(inToM(piv.x), 0, inToM(piv.z));
+      this.arm = arm;
+      this.group.add(arm);
+      this.group.add(m(1.2, c.width * 0.6, 1.2, COLORS.darkMetal, piv.x, 0, piv.z));
+    }
+    // Carriage + claw at the effector point.
+    const slots = spec.effector.type === 'claw' ? [0] : [1.8, -1.8];
+    this.claw.add(m(0.6, spec.effector.type === 'claw' ? 5 : 8, 2.2, COLORS.darkMetal, -2.4, 0, 0));
+    for (const y of slots) {
+      this.claw.add(m(2.6, 0.4, 1.4, COLORS.metal, -1.0, y + 1.6, 0));
+      this.claw.add(m(2.6, 0.4, 1.4, COLORS.metal, -1.0, y - 1.6, 0));
+    }
+    this.carriage.add(this.claw);
+    this.group.add(this.carriage);
+    // Intake rollers
+    if (spec.intake.type !== 'none') {
+      const roller = new THREE.CylinderGeometry(inToM(0.9), inToM(0.9), inToM(Math.min(c.width - 2, 12)), 12);
+      const addRoller = (x: number) => {
+        const mesh = new THREE.Mesh(roller, mat(spec.intake.type === 'flex' ? 0x2aa36b : COLORS.darkMetal, { rough: 0.8 }));
+        mesh.position.set(inToM(x), 0, inToM(2));
+        this.group.add(mesh);
+      };
+      if (spec.intake.mount !== 'back') addRoller(c.length / 2 + 0.8);
+      if (spec.intake.mount !== 'front') addRoller(-c.length / 2 - 0.8);
+    }
+    // Toggle / roller tool on the top front.
+    const tool = spec.tool.type;
+    if (tool !== 'none') {
+      const len = tool === 'flipper' ? 5 : tool === 'wedge' ? 3.5 : 2.5;
+      const t = m(len, tool === 'spinner' ? 1.5 : 3, 0.8, tool === 'spinner' ? 0x2aa36b : COLORS.metal, c.length / 2 + len / 2 - 1, 0, Math.max(10, c.height - 1));
+      this.group.add(t);
+    }
+    // Pneumatic tanks
+    for (let i = 0; i < spec.pneumatics.tanks; i++) {
+      const tank = new THREE.Mesh(new THREE.CylinderGeometry(inToM(0.8), inToM(0.8), inToM(5), 10), mat(0x2b2f36, { metal: 0.6 }));
+      tank.rotation.z = Math.PI / 2;
+      tank.position.set(inToM(-c.length / 2 + 3), inToM((i ? -1 : 1) * 3), inToM(CHASSIS_BASE + 1));
+      this.group.add(tank);
+    }
+    this.update(0, 0);
+  }
+
+  update(lift: number, wrist: number): void {
+    const e = effectorPoint(this.spec, lift);
+    this.carriage.position.set(inToM(e.x), 0, inToM(e.z));
+    this.claw.rotation.x = Math.PI * wrist;
+    if (this.arm) {
+      const piv = armPivot(this.spec)!;
+      this.arm.rotation.y = -Math.atan2(e.z - piv.z, e.x - piv.x);
+    }
+  }
+
+  dispose(): void {
+    this.group.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (mesh.isMesh) mesh.geometry.dispose();
+    });
+  }
+}
