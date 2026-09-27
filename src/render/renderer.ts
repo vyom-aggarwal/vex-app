@@ -327,9 +327,10 @@ export class ZRenderer {
     let fov = 50;
     switch (this.mode) {
       case 'driver':
+        // Aim ~33° down so both your own wall (and robot) and the far wall stay in frame.
         pos = e2t(0, side * station, eye);
-        look = e2t(0, -side * 0.25, 0);
-        fov = 52;
+        look = e2t(0, side * 0.3, 0);
+        fov = 58;
         break;
       case 'driverTrack':
         pos = e2t(0, side * station, eye);

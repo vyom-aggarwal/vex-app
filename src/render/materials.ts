@@ -11,7 +11,7 @@ export const COLORS = {
   tileLine: 0x2a2d33,
   wall: 0xb9c3cc,
   wallPanel: 0xdfe8ee,
-  neutral: 0x24262b,
+  neutral: 0x3a3e46,
   cupClear: 0xdfe8ee,
   cupOpaque: 0x5b6067,
   metal: 0x9aa3ad,
