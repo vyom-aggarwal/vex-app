@@ -31,6 +31,13 @@
 - Toggle/roller tool press: steps toward your own color; from your own color it steps back to yellow.
 - Lying pieces picked up by the claw or intake are righted with the end pointing away from the robot on top.
 
+- Robots are locked to the tile plane (Z, roll, pitch) and re-pinned each step; the lift's effector collider only
+  touches Toggles/Rollers. This fixed robots climbing/bouncing on goals and pieces.
+- Touch detection for rules = exact overlap query (colliders +0.15 in); Rapier manifold distances were unreliable.
+- UI follows DSim's structure (sidebar Home/Play/Configure/Records; Configure: Robot, Controls, Match, Audio and
+  visual, Graphics) with original code and design. Rebindable controls; My Robot draft auto-saves.
+- Live score hides end-of-match position points (parking, Midfield robots) until the endgame; the final score counts them.
+
 ## Open TODOs
 - Pinnacle Solo Coding is a timer/mode shell only (no routine editor yet). Inspire hook: `INSPIRE_ROBOTS_PER_TEAM`.
 - Renderer/UI was verified by type-check + build only (no browser runs, per spec rules).
@@ -41,7 +48,7 @@
   Auto Line tape 2.5; cross-arm offset 4.75; toggle overhang 0.4 + face order; neutral footprints; loader capacity 6.
 - Pinnacle: all coordinates; interior 140.4; roller 25.6 long at 13.2, face order, starts yellow; goal/pin/cup/loader
   sizes (Override values); cup up-sides; start areas; "pinnacle" = 1 Cup + 1 Pin unit; no pause between periods.
-- Physics: piece masses 0.06/0.05 kg; pin insert 2.93; snap 0.6 in (+3.5/−1.2 window); break speed 0.8 m/s; detent gains/caps.
+- Physics: piece masses 0.06/0.05 kg; pin insert 2.93; snap 0.9 in (tip/opening geometry; +3.5/−1.2 window); break speed 0.8 m/s; detent gains/caps.
 - Motors/mechanisms: V5 stall 2.1 N·m @100 rpm (5.5 W = half); wheel μ, rolling resistance; mass model; lift ~14 in/s
   per 11 W; wrist/claw timing; ~30 air strokes/tank; tool reach/timing.
 - Rules: load delay 1 s; SG13 lingering 3 s; SG7 1 in slack; holding-detection heuristic.

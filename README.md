@@ -13,9 +13,9 @@ Build a robot, drive full matches against partner and opponent bots, run skills 
 
 ## Features
 
-- A home page for each game with **Play / Configure / Records** tabs and a game switcher (`/override`, `/pinnacle`)
+- A main menu for each game (**Play / Configure / Records**) with a game switcher, and deep links such as `/override`, `/pinnacle/play` and `/override/configure/controls`
 - A 3D field built with three.js and Rapier physics at a fixed 120 Hz. Rendering interpolates between physics steps.
-- Cameras: **Driver Station**, **Driver Station (tracking)**, **Chase**, **Overhead 2D** (flat top-down) and **Audience**
+- Cameras: **Driver Station**, **Driver Station (tracking)**, **Chase**, **Orbit** (drag and scroll), **Overhead 2D** (flat top-down) and **Audience**
 - A **robot builder** with a live 3D turntable preview, derived top speed, turn rate and push force, a legality panel, presets, saved robots, and export/import as `ZDRIVE1:` strings
 - **Field-centric or robot-centric** driving, plus toggleable assists:
   - goal auto-align
@@ -35,30 +35,44 @@ Build a robot, drive full matches against partner and opponent bots, run skills 
 
 ## Controls
 
+Every action can be rebound in **Configure → Controls**, on both keyboard and gamepad. The defaults are:
+
 | Action | Keyboard | Gamepad (V5 layout) |
 |---|---|---|
-| Drive / turn | W A S D, Q E, arrows | Sticks (split arcade, arcade or tank) |
-| Lift up / down | R / F | L1 / L2 |
+| Drive forward / back | W / S | Sticks (split arcade, arcade or tank) |
+| Strafe (holonomic) or turn (tank) | A / D | Sticks |
+| Turn | Q / E or ← / → | Sticks |
+| Lift up / down | R / F or ↑ / ↓ | L1 / L2 |
 | Intake in / out | Space / Shift | R1 / R2 |
-| Grip Pin | J | A |
-| Grip Cup | K | B |
+| Grip / release Pin | J | A |
+| Grip / release Cup | K | B |
 | Wrist flip | L | Y |
-| Toggle / roller tool | T | X |
+| Toggle / Roller tool | T | X |
 | Goal auto-align (hold) | V | D-pad down |
-| Load next Match Load | G | D-pad up |
+| Feed next Match Load | G | D-pad up |
 | Choose Loader | [ / ] | D-pad left / right |
 | Load type: alliance Pin / yellow Pin / Cup / nested pair / other-color Pin | 1 / 2 / 3 / 4 / 5 | — |
+| Start match / pause | Enter | Start |
+| Restart | Backspace | Back |
+| Menu | Esc | — |
 | Cycle camera | C | R3 |
-| Toggle 2D view | M | L3 |
-| Spawn an object (Free Drive) | P | — |
-| Reset | Backspace | Back |
-| Start / pause | Enter / Esc | Start |
+| Toggle 2D / 3D view | M | L3 |
+| Score breakdown | Tab | — |
+| Spawn a piece (Free Drive) | P | — |
 
-On a gamepad, L1/L2 are the left bumper and trigger and R1/R2 are the right ones, the same as a V5 controller. Configure → Settings has the full controls table, plus drive mode, deadzone, response curve, assists, graphics and referee options.
+On a gamepad, L1/L2 are the left bumper and trigger and R1/R2 are the right ones, the same as a V5 controller. The Controls page also sets the drive layout, stick deadzone, sensitivity curve (1.0 linear to 3.0 cubic) and trigger threshold, and shows a live readout of a connected gamepad.
+
+## Configure
+
+- **Robot:** a live 3D/2D preview with top speed, acceleration, turn rate, turn acceleration, mass and size. You can start from a preset or a saved robot, then edit the full build (below), set the chassis and accent colors, and add a team name and number, which appear on the robot's license plates. The Driving options (robot- or field-centric, speed cap, assists) are here too. Every change is kept in **My Robot**, the robot you drive; "Save this robot" keeps a named copy.
+- **Controls:** rebinding and stick settings, described above.
+- **Match:** alliance, a start position picked on a field map, and the Partner, Opponent 1 and Opponent 2 slots. Each slot is None, Dummy (a robot that never moves) or AI (Easy, Medium or Hard, with a Scorer, Toggle/Roller, Defender or Mixed style), optionally driving a copy of My Robot. The automatic referee and Worlds AWP thresholds are set here too.
+- **Audio and visual:** master, game-sound and voice-callout volumes; a System, Light or Dark theme; in-match messages on or off; and a performance read-out (Off, Simple or Detailed).
+- **Graphics:** 3D or 2D view, a default camera (Driver, Driver tracking, Chase, Orbit, Audience), your height (used by the driver camera), and quality Auto, Low, Medium, High or Ultra. Auto steps down if a match keeps dropping under 40 fps.
 
 ## Builder guide
 
-Open **Configure → Robot builder**. The selected game sets the constraints.
+Open **Configure → Robot**. The selected game sets the constraints.
 
 1. **Chassis.** Set the length, width and starting height, each at most 18″. The preview draws the 18″ starting cube and the expansion envelope: 24″ × 24″, with a 50″ height limit in Override and no height limit in Pinnacle.
 2. **Drivetrain.**

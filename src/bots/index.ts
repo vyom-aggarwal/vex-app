@@ -1,4 +1,4 @@
-import { effectorPoint, liftRange, storageCapacity } from '../engine/mechanism';
+import { SLOT_Y, effectorPoint, effectorSlots, liftRange, storageCapacity } from '../engine/mechanism';
 import { upAxis } from '../engine/physics';
 import { PIN, stackTop } from '../engine/pieces';
 import type { Controller } from '../engine/session';
@@ -15,9 +15,9 @@ import { mToIn } from '../shared/units';
  */
 
 const LEVEL = {
-  easy: { speed: 0.55, turn: 0.55, tol: 1.2, react: 36, assists: 0 },
+  easy: { speed: 0.55, turn: 0.55, tol: 1.3, react: 36, assists: 0 },
   normal: { speed: 0.8, turn: 0.75, tol: 0.8, react: 18, assists: 0 },
-  hard: { speed: 1, turn: 0.95, tol: 0.5, react: 8, assists: ASSIST.autoPlace },
+  hard: { speed: 1, turn: 0.95, tol: 0.6, react: 8, assists: ASSIST.autoPlace },
 } satisfies Record<BotLevel, unknown>;
 
 type Task =
@@ -39,6 +39,8 @@ interface Brain {
   contact: number;
   backoff: number;
   lastTask: string;
+  stall: number;
+  backup: number;
 }
 
 function liftFor(sim: Sim, i: number, zIn: number): number {
@@ -57,7 +59,7 @@ function liftFor(sim: Sim, i: number, zIn: number): number {
 
 export function makeBot(style: BotStyle, level: BotLevel): Controller {
   const L = LEVEL[level];
-  const brain: Brain = { task: { kind: 'idle' }, since: 0, stuck: 0, escape: 0, press: 0, lastPress: -999, decideAt: 0, mode: style === 'scorer' ? 'scorer' : 'controller', contact: 0, backoff: 0, lastTask: '' };
+  const brain: Brain = { task: { kind: 'idle' }, since: 0, stuck: 0, escape: 0, press: 0, lastPress: -999, decideAt: 0, mode: style === 'scorer' ? 'scorer' : 'controller', contact: 0, backoff: 0, lastTask: '', stall: 0, backup: 0 };
 
   const fn = (sim: Sim, i: number): RobotCommand => {
     const s = sim.state;
@@ -81,14 +83,29 @@ export function makeBot(style: BotStyle, level: BotLevel): Controller {
     const holo = spec.drive.type !== 'tank';
     const e = effectorPoint(spec, me.lift);
 
+    /** Reverse only if nothing we must not touch is behind us; otherwise pivot forward instead. */
+    const reverse = (v: number): Pick<RobotCommand, 'fwd' | 'turn'> => {
+      const back = spec.chassis.length / 2 + 9;
+      const bx = P.x - Math.cos(pose.th) * back;
+      const by = P.y - Math.sin(pose.th) * back;
+      const H = game.field.size / 2 - 4;
+      const blocked =
+        Math.abs(bx) > H ||
+        Math.abs(by) > H ||
+        game.field.goals.some((g) => forbidden.has(g.id) && Math.hypot(g.x - bx, g.y - by) < 12) ||
+        oppZones.some((z) => pointInPoly({ x: bx, y: by }, z));
+      return blocked ? { fwd: 0.35, turn: 0.7 } : { fwd: -v, turn: 0 };
+    };
+
     // --- Watchdog -------------------------------------------------------------------------
     if (brain.escape > 0) {
       brain.escape--;
-      return { ...cmd, fwd: -0.7, turn: 0.5 };
+      const r = reverse(0.7);
+      return { ...cmd, fwd: r.fwd, turn: r.turn === 0 ? 0.5 : r.turn };
     }
 
     /** Drive so that robot-frame point (ax, 0) lands on target T. Returns remaining error (in). */
-    const drive = (T: V2, ax: number, slow = 1, targetGoal: string | null = null): number => {
+    const drive = (T: V2, ax: number, slow = 1, targetGoal: string | null = null, slotY = 0): number => {
       const dx = T.x - P.x;
       const dy = T.y - P.y;
       const dist = Math.hypot(dx, dy);
@@ -152,9 +169,13 @@ export function makeBot(style: BotStyle, level: BotLevel): Controller {
       if (nearStack) slow = Math.min(slow, 0.5);
       const ax2 = aim.x - P.x;
       const ay2 = aim.y - P.y;
-      const heading = Math.atan2(ay2, ax2);
+      const dist2 = Math.hypot(ax2, ay2);
+      const onTarget = aim === T;
+      // Aim the grip slot (offset slotY from the centerline) at the target, not the centerline.
+      const reach2 = Math.sqrt(Math.max(dist2 * dist2 - slotY * slotY, 0));
+      const heading = Math.atan2(ay2, ax2) - (onTarget ? Math.atan2(slotY, Math.max(ax, reach2)) : 0);
       const err = wrapAngle(heading - pose.th);
-      const along = Math.hypot(ax2, ay2) - (aim === T ? ax : 0);
+      const along = onTarget ? reach2 - ax : dist2;
       const turn = clamp(-err * 1.6 + pose.w * 0.18, -1, 1) * L.turn;
       // Proportional approach with a floor so the last inch doesn't take forever.
       const approach = (div: number): number => {
@@ -172,9 +193,9 @@ export function makeBot(style: BotStyle, level: BotLevel): Controller {
       return Math.abs(along) + Math.abs(err) * 3;
     };
 
-    /** Distance (in) from the effector point to T. */
-    const effErr = (T: V2): number => {
-      const ep = sim.robotPoint(i, e.x, 0, e.z);
+    /** Distance (in) from a grip slot to T. */
+    const effErr = (T: V2, slotY = 0): number => {
+      const ep = sim.robotPoint(i, e.x, slotY, e.z);
       return Math.hypot(mToIn(ep.x) - T.x, mToIn(ep.y) - T.y);
     };
 
@@ -248,8 +269,9 @@ export function makeBot(style: BotStyle, level: BotLevel): Controller {
         const want = liftFor(sim, i, 3.25);
         cmd.lift = me.lift > want + 0.03 ? -1 : 0;
         if (storageCapacity(spec) > 0) cmd.intake = 1;
-        drive(T, e.x, effErr(T) < 8 ? 0.4 : 0.8);
-        if (effErr(T) < 1.5 && me.lift <= want + 0.05) tapped(o.kind === 'cup' ? 'gripCup' : 'gripPin');
+        const sy = effectorSlots(spec).length === 1 ? 0 : SLOT_Y[o.kind];
+        drive(T, e.x, effErr(T, sy) < 8 ? 0.4 : 0.8, null, sy);
+        if (effErr(T, sy) < 1.5 && me.lift <= want + 0.05) tapped(o.kind === 'cup' ? 'gripCup' : 'gripPin');
         if (s.tick - brain.since > TICK_HZ * 8) brain.decideAt = s.tick;
       }
     } else if (t.kind === 'place') {
@@ -259,13 +281,28 @@ export function makeBot(style: BotStyle, level: BotLevel): Controller {
       const want = liftFor(sim, i, top.z + PIN.half + 1.0);
       cmd.lift = Math.abs(me.lift - want) > 0.02 ? Math.sign(want - me.lift) : 0;
       const ready = Math.abs(me.lift - want) < 0.05;
-      const near = effErr(g) < 10;
-      drive(g, e.x, near ? 0.25 : ready ? 0.6 : 0.4, t.goal);
+      const k = me.slots.findIndex((x) => x >= 0);
+      if (k < 0 && me.store.length > 0) {
+        // Piece is in the intake: have the claw take it first.
+        tapped(sim.obj(me.store[0]).kind === 'cup' ? 'gripCup' : 'gripPin');
+      }
+      const sy = k >= 0 ? SLOT_Y[sim.slotKind(me, k)] : 0;
+      const errG = effErr(g, sy);
+      if (brain.backup > 0) {
+        brain.backup--;
+        Object.assign(cmd, reverse(0.45));
+      } else {
+        drive(g, e.x, errG < 10 ? 0.25 : ready ? 0.6 : 0.4, t.goal, sy);
+        // A tank that arrives slightly off-line can't fix it in place: back off and re-approach.
+        brain.stall = errG < 3 ? brain.stall + 1 : 0;
+        if (brain.stall > TICK_HZ * 2.5) {
+          brain.stall = 0;
+          brain.backup = Math.round(TICK_HZ * 0.7);
+        }
+      }
       if (holding < 0) brain.decideAt = s.tick;
-      else if (ready && effErr(g) < Math.min(0.55, L.tol) && Math.hypot(pose.vx, pose.vy) < 0.15) {
-        const k = me.slots.findIndex((x) => x >= 0);
-        if (k >= 0) tapped(sim.slotKind(me, k) === 'cup' ? 'gripCup' : 'gripPin');
-        else tapped('gripPin');
+      else if (k >= 0 && ready && errG < L.tol && Math.hypot(pose.vx, pose.vy) < 0.15) {
+        tapped(sim.slotKind(me, k) === 'cup' ? 'gripCup' : 'gripPin');
       }
     } else if (t.kind === 'detent') {
       const d = game.field.detents.find((x) => x.id === t.id)!;
@@ -285,7 +322,7 @@ export function makeBot(style: BotStyle, level: BotLevel): Controller {
       if (brain.contact > TICK_HZ * 2) brain.backoff = TICK_HZ;
       if (brain.backoff > 0) {
         brain.backoff--;
-        cmd.fwd = -0.6;
+        Object.assign(cmd, reverse(0.6));
       } else {
         const theirZones = game.field.loaders.filter((l) => l.alliance === other(me.alliance) && l.zone).map((l) => l.zone!);
         const nearForbidden = game.field.goals.some((g) => forbidden.has(g.id) && Math.hypot(g.x - Q.x, g.y - Q.y) < 32);

@@ -81,6 +81,9 @@ export function effectorSlots(spec: RobotSpec): ('any' | 'pin' | 'cup')[] {
   return spec.effector.type === 'claw' ? ['any'] : ['pin', 'cup'];
 }
 
+/** Lateral offset (in, +left) of each grip slot from the claw centerline. */
+export const SLOT_Y: Record<'any' | 'pin' | 'cup', number> = { any: 0, pin: 1.8, cup: -1.8 };
+
 /** Largest nested unit the effector can carry (pieces). */
 export const maxUnitSize = (spec: RobotSpec): number => (spec.effector.type === 'stack' ? 12 : 2);
 

@@ -26,7 +26,7 @@ export function lineup(game: GameDefinition, mode: ModeDef, player: RobotSpec, s
   const mine: Alliance = mode.solo ? 'red' : s.alliance;
   const theirs: Alliance = mine === 'red' ? 'blue' : 'red';
   const mySlots = mode.starts.filter((x) => x.alliance === mine).length || 1;
-  const playerSlot = mode.robots[mine] > 1 ? s.startSlot % mySlots : s.startSlot % mySlots;
+  const playerSlot = s.startSlot % mySlots;
   const out: RobotEntry[] = [{ spec: player, alliance: mine, driver: 'player', slot: playerSlot }];
   const add = (slot: BotSlot, alliance: Alliance, index: number) => {
     if (slot.kind === 'none') return;
@@ -48,5 +48,6 @@ export function describeSlot(slot: BotSlot): string {
   if (slot.kind === 'none') return 'Empty';
   if (slot.kind === 'dummy') return 'Dummy (stationary)';
   const style = { scorer: 'Scorer', controller: 'Toggle/Roller', defender: 'Defender', mixed: 'Mixed' }[slot.style];
-  return `AI ${slot.level[0].toUpperCase() + slot.level.slice(1)} · ${style}`;
+  const level = { easy: 'Easy', normal: 'Medium', hard: 'Hard' }[slot.level];
+  return `AI ${level} · ${style}`;
 }

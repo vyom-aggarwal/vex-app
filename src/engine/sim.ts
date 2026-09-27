@@ -31,6 +31,7 @@ import { buildDriveModel, groupVoltages, wheelForces, type DriveModel } from './
 import {
   CHASSIS_BASE,
   CLEARANCE,
+  SLOT_Y,
   TOOL,
   actuationTime,
   effectorPoint,
@@ -695,22 +696,27 @@ export class Sim {
     const p = this.robotPose(r.index);
     const c = Math.cos(p.th);
     const s = Math.sin(p.th);
-    // Target in the robot frame, relative to the effector point.
+    // Aim the slot that holds (or will take) the piece, not the claw centerline.
+    const aimK = holding ? r.slots.findIndex((x) => x >= 0) : 0;
+    const sy = inToM(SLOT_Y[this.slotKind(r, aimK)]);
+    const sx = inToM(e.x);
     const dx = target.x - p.x;
     const dy = target.y - p.y;
-    const lx = c * dx + s * dy - inToM(e.x);
-    const ly = -s * dx + c * dy;
+    const tx = c * dx + s * dy;
+    const ty = -s * dx + c * dy;
     const out = { ...cmd };
     const holo = this.models[r.index].kind !== 'tank';
     const k = 1 / inToM(6);
     if (holo) {
-      out.fwd = clamp(cmd.fwd + lx * k * 0.6, -1, 1);
-      out.strafe = clamp(cmd.strafe - ly * k * 0.6, -1, 1);
+      out.fwd = clamp(cmd.fwd + (tx - sx) * k * 0.6, -1, 1);
+      out.strafe = clamp(cmd.strafe - (ty - sy) * k * 0.6, -1, 1);
       out.field = null;
     } else {
-      const ang = Math.atan2(ly, lx + inToM(e.x));
+      // Rotate so the slot point swings onto the target, then close the distance.
+      const ang = wrapAngle(Math.atan2(ty, tx) - Math.atan2(sy, sx));
+      const along = Math.hypot(tx, ty) - Math.hypot(sx, sy);
       out.turn = clamp(cmd.turn - ang * 2.2, -1, 1);
-      if (Math.abs(ang) < 0.25) out.fwd = clamp(cmd.fwd + lx * k * 0.5, -1, 1);
+      if (Math.abs(ang) < 0.25) out.fwd = clamp(cmd.fwd + along * k * 0.5, -1, 1);
     }
     return out;
   }
@@ -825,7 +831,7 @@ export class Sim {
     const p = this.robotPose(r.index);
     const c = Math.cos(p.th);
     const s = Math.sin(p.th);
-    const yOff = kind === 'pin' ? 1.8 : kind === 'cup' ? -1.8 : 0;
+    const yOff = SLOT_Y[kind];
     let best: number | null = null;
     let bd = Infinity;
     const tops = new Set<number>();
@@ -960,7 +966,7 @@ export class Sim {
     const spec = this.specs[r.index];
     const e = effectorPoint(spec, r.lift);
     const kind = this.slotKind(r, k);
-    const yOff = kind === 'pin' ? 1.8 : kind === 'cup' ? -1.8 : 0;
+    const yOff = SLOT_Y[kind];
     const pos = this.robotPoint(r.index, e.x, yOff, e.z + HOLD_LIFT);
     const th = this.robotPose(r.index).th;
     const o = this.obj(r.slots[k]);
