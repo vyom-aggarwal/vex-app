@@ -27,13 +27,17 @@ export interface DetentDef {
   id: string;
   kind: 'toggle' | 'roller';
   region: string;
-  /** Hinge point and axis (unit vector). */
+  /** Hinge point (the prism's long axis sits here, above the wall). */
   pivot: { x: number; y: number; z: number };
-  axis: { x: number; y: number; z: number };
-  /** Paddle/drum box at angle 0: half extents and center offset from the pivot, world axes. */
-  half: { x: number; y: number; z: number };
-  offset: { x: number; y: number; z: number };
-  /** Discrete seated states. Angles in degrees about `axis`. */
+  /** Unit vector pointing from the wall into the field. The hinge axis is inward × up. */
+  inward: { x: number; y: number };
+  /** Triangular prism: length along the wall and side of the triangle. */
+  length: number;
+  side: number;
+  /**
+   * Discrete seated states, degrees about the hinge axis. Positive rotation lifts the field-side edge.
+   * The state shown is the color of the face that points up and into the field.
+   */
   detents: { color: HalfColor; angle: number }[];
   start: HalfColor;
   /** Rollers spin freely through their states; toggles have end stops. */
@@ -101,6 +105,10 @@ export interface ObjectSpawn {
   cupUp?: CupHalf;
   /** Starts on the Autonomous line (usable by either alliance in Autonomous). */
   onLine?: boolean;
+  /** Starts nested in this goal (upright). */
+  nestIn?: string;
+  /** Starts nested on top of the layout entry with this index (e.g. a Pin in a Cup). */
+  rideOn?: number;
 }
 
 export interface StartPose {

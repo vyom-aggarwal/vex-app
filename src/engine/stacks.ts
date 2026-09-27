@@ -53,7 +53,7 @@ export function analyzeStack(stack: GoalStack, oneHalfRule: boolean): StackInfo 
     if (lvl.kind === 'pins') {
       const above = L[i + 1];
       const crowded = oneHalfRule && lvl.pins.length > 1;
-      const placed = belowOk && !crowded && lvl.pins.length > 0;
+      const placed: boolean = belowOk && !crowded && lvl.pins.length > 0;
       const aboveOpaque = above?.kind === 'cup' && above.down === 'opaque';
       for (const p of lvl.pins) {
         const colors = PIN_HALVES[p.pin];
@@ -72,7 +72,7 @@ export function analyzeStack(stack: GoalStack, oneHalfRule: boolean): StackInfo 
       belowOpaque = false;
     } else {
       const prev = L[i - 1];
-      const placed = i > 0 && prev.kind === 'pins' && belowOk;
+      const placed: boolean = i > 0 && prev.kind === 'pins' && belowOk;
       cups.push({ id: lvl.id, level: i, placed, down: lvl.down });
       belowOk = placed;
       belowOpaque = up(lvl.down) === 'opaque';

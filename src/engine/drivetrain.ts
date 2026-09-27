@@ -99,7 +99,7 @@ export function buildDriveModel(spec: RobotSpec): DriveModel {
       [1, -1],
     ] as const) {
       for (let i = 0; i < n; i++) {
-        const x = n === 1 ? 0 : L / 2 - inset - (i * (L - 2 * inset)) / (n - 1);
+        const x = L / 2 - inset - (i * (L - 2 * inset)) / (n - 1);
         wheels.push({ x, y: sy * (W / 2 - inset), dir: 0, omni: d.type === 'hdrive' || (d.omni[i] ?? true), group: side });
       }
       // Torque at the wheels = motor torque / ratio (ratio is wheel rpm / motor rpm).
