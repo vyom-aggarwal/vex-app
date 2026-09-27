@@ -1,5 +1,6 @@
 import { loadPhysics } from '../src/engine/physics';
 import { ReplayPlayer, Session } from '../src/engine/session';
+import { makeBot } from '../src/bots';
 import OVERRIDE from '../src/games/override';
 import PINNACLE from '../src/games/pinnacle';
 import { presetsFor } from '../src/games/presets';
@@ -20,7 +21,8 @@ const entries = (game: 'override' | 'pinnacle', n: { red: number; blue: number }
 test('Replay reproduces the run exactly; seeking via snapshots matches', async () => {
   await loadPhysics();
   const opts = { game: OVERRIDE, modeId: 'match1v1' as const, robots: entries('override', { red: 1, blue: 1 }), seed: 7 };
-  const s = await Session.create(opts, [null, (sim, i) => cmd({ fwd: 0.6, turn: Math.sin(sim.state.tick / 90) * 0.5 + i * 0 })]);
+  const weave = (sim: { state: { tick: number } }) => cmd({ fwd: 0.6, turn: Math.sin(sim.state.tick / 90) * 0.5 });
+  const s = await Session.create(opts, [null, weave]);
   s.tick(null);
   s.start();
   for (let t = 0; t < 2600; t++) {
@@ -30,12 +32,13 @@ test('Replay reproduces the run exactly; seeking via snapshots matches', async (
   const final = s.sim.hash();
   const rep = s.replay({ red: 0, blue: 0, player: 0 });
   ok(rep.cmds.length < 2600 * 2, 'commands stored as deltas');
-  const p = new ReplayPlayer(rep, opts);
+  const p = new ReplayPlayer(rep, opts, [null, weave]);
   while (p.step());
   eq(p.sim.hash(), final, 'replay hash');
   p.seek(700);
   p.seek(rep.ticks);
   eq(p.sim.hash(), final, 'hash after seeking back and forward');
+  ok(JSON.stringify(rep).length < 200_000, `compact replay (${JSON.stringify(rep).length} bytes)`);
   eq(replayFileName({ game: 'override', mode: 'skills', date: '2026-09-27T10:11:12.000Z' }), 'zdrive-override-skills-2026-09-27-10-11-12.json');
 });
 
@@ -96,4 +99,26 @@ test('Records: best score and career totals', () => {
   eq(r.career.runs, 2);
   eq(r.career.points, 70);
   ok([...mem.keys()].every((k) => k.startsWith('zdrive:')), 'keys use the zdrive: prefix');
+});
+
+test('Replay with bots: re-created bots reproduce the run, including after seeking back', async () => {
+  await loadPhysics();
+  const robots: RobotEntry[] = [
+    { spec: presetsFor('override')[0], alliance: 'red', driver: 'player', slot: 0 },
+    { spec: presetsFor('override')[1], alliance: 'blue', driver: { style: 'mixed', level: 'hard' }, slot: 0 },
+  ];
+  const opts = { game: OVERRIDE, modeId: 'match1v1' as const, robots, seed: 21 };
+  const bots = () => robots.map((r) => (r.driver === 'player' ? null : makeBot(r.driver.style, r.driver.level)));
+  const s = await Session.create(opts, bots());
+  s.start();
+  for (let t = 0; t < 3000; t++) s.tick(cmd({ fwd: t % 600 < 300 ? 0.8 : -0.8, turn: 0.2 }));
+  const final = s.sim.hash();
+  const rep = s.replay({ red: 0, blue: 0, player: 0 });
+  ok(rep.cmds.every((c) => c[1] === 0), 'only the player is recorded');
+  const p = new ReplayPlayer(rep, opts, bots());
+  while (p.step());
+  eq(p.sim.hash(), final, 'linear playback');
+  p.seek(1300);
+  p.seek(rep.ticks);
+  eq(p.sim.hash(), final, 'after seeking back to a snapshot');
 });

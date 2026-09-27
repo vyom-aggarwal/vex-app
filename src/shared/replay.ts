@@ -15,8 +15,8 @@ export interface Replay {
   worlds: boolean;
   entries: RobotEntry[];
   ticks: number;
-  /** [tick, robot, packed command] */
-  cmds: [number, number, PackedCmd][];
+  /** [tick, robot, packed command]. Bot robots aren't recorded: bots are deterministic and re-created on playback. */
+  cmds: [number, number, string][];
   hp: [number, HpCommand][];
   /** Tick of match start (sim.start()). */
   startTick: number;
@@ -26,7 +26,8 @@ export interface Replay {
 
 export type PackedCmd = [number, number, number, number | null, number | null, number, number, number, number];
 
-const q = (v: number): number => Math.round(v * 1000) / 1000;
+/** Analog inputs are quantized to 1/100 so gamepad jitter doesn't bloat replays. */
+const q = (v: number): number => Math.round(v * 100) / 100;
 
 export function quantize(c: RobotCommand): RobotCommand {
   return {
@@ -64,6 +65,17 @@ export function unpackCmd(p: PackedCmd): RobotCommand {
 }
 
 export const sameCmd = (a: PackedCmd, b: PackedCmd): boolean => a.every((v, i) => v === b[i]);
+
+/** Compact text form: numbers ×100 as integers, comma-separated; null fields empty. */
+export function encodeCmd(p: PackedCmd): string {
+  return p.map((v, i) => (v === null ? '' : i < 7 ? String(Math.round(v * 100)) : String(v))).join(',');
+}
+
+export function decodeCmd(s: string): PackedCmd {
+  const f = s.split(',');
+  const n = (i: number) => (f[i] === '' ? null : i < 7 ? Number(f[i]) / 100 : Number(f[i]));
+  return [n(0)!, n(1)!, n(2)!, n(3), n(4), n(5)!, n(6)!, n(7)!, n(8)!];
+}
 
 export function replayFileName(r: Pick<Replay, 'game' | 'mode' | 'date'>): string {
   const d = r.date.slice(0, 19).replace(/[:T]/g, '-');

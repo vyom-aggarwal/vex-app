@@ -59,7 +59,7 @@ export function makeBot(style: BotStyle, level: BotLevel): Controller {
   const L = LEVEL[level];
   const brain: Brain = { task: { kind: 'idle' }, since: 0, stuck: 0, escape: 0, press: 0, lastPress: -999, decideAt: 0, mode: style === 'scorer' ? 'scorer' : 'controller', contact: 0, backoff: 0, lastTask: '' };
 
-  return (sim: Sim, i: number): RobotCommand => {
+  const fn = (sim: Sim, i: number): RobotCommand => {
     const s = sim.state;
     const me = s.robots[i];
     const spec = sim.specs[i];
@@ -273,4 +273,8 @@ export function makeBot(style: BotStyle, level: BotLevel): Controller {
     }
     return cmd;
   };
+  return Object.assign(fn, {
+    save: () => structuredClone(brain),
+    load: (st: unknown) => Object.assign(brain, structuredClone(st as Brain)),
+  });
 }

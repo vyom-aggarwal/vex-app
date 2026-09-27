@@ -33,7 +33,7 @@ const e2t = (x: number, y: number, z: number): THREE.Vector3 => new THREE.Vector
  */
 export class ZRenderer {
   renderer!: THREE.WebGLRenderer;
-  readonly canvas: HTMLCanvasElement;
+  canvas: HTMLCanvasElement;
   private scene = new THREE.Scene();
   private root = new THREE.Group();
   private persp = new THREE.PerspectiveCamera(55, 1, 0.05, 60);
@@ -85,8 +85,13 @@ export class ZRenderer {
     const wantAA = q !== 'low';
     if (wantAA !== this.aa) {
       // Antialiasing is fixed per context: replace it (the old one is released first, so still one context).
+      // A canvas keeps its first context, so the replacement renderer gets a fresh canvas.
       this.renderer.dispose();
       this.renderer.forceContextLoss();
+      const old = this.canvas;
+      this.canvas = document.createElement('canvas');
+      this.canvas.className = old.className;
+      old.parentElement?.replaceChild(this.canvas, old);
       this.aa = wantAA;
       this.createRenderer();
     }

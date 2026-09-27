@@ -1633,14 +1633,18 @@ export class Sim {
     return hashString(parts.join('|'));
   }
 
+  /** Full snapshot: logical state, Rapier world, and the transient facts controllers read. */
   takeSnapshot(): { state: string; world: Uint8Array } {
-    return { state: JSON.stringify(this.state), world: this.world.takeSnapshot() };
+    return { state: JSON.stringify({ s: this.state, f: this.facts, c: this.lastCmds }), world: this.world.takeSnapshot() };
   }
 
   restoreSnapshot(snap: { state: string; world: Uint8Array }): void {
     this.world.free();
     this.world = RAPIER.World.restoreSnapshot(snap.world);
-    this.state = JSON.parse(snap.state) as SimState;
+    const d = JSON.parse(snap.state) as { s: SimState; f: RobotFacts[]; c: RobotCommand[] };
+    this.state = d.s;
+    this.facts = d.f;
+    this.lastCmds = d.c;
   }
 
   dispose(): void {

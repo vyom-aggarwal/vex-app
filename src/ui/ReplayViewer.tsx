@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { makeBot } from '../bots';
 import { loadPhysics } from '../engine/physics';
 import { ReplayPlayer } from '../engine/session';
 import type { GameDefinition } from '../engine/types';
@@ -37,7 +38,8 @@ export default function ReplayViewer({ game, replay, settings, onExit }: { game:
       if (!live || !host.current) return;
       rendererRef.current = r;
       detach = attachCanvas(r, host.current);
-      const p = new ReplayPlayer(replay, { game, modeId: replay.mode, robots: replay.entries, seed: replay.seed, autoRef: replay.autoRef, worlds: replay.worlds });
+      const bots = replay.entries.map((e) => (e.driver === 'player' ? null : makeBot(e.driver.style, e.driver.level)));
+      const p = new ReplayPlayer(replay, { game, modeId: replay.mode, robots: replay.entries, seed: replay.seed, autoRef: replay.autoRef, worlds: replay.worlds }, bots);
       playerRef.current = p;
       r.alliance = replay.entries[0]?.alliance ?? 'red';
       r.loadGame(game);

@@ -53,6 +53,7 @@ function flatTwin(m: THREE.Material): THREE.Material {
     const s = m as THREE.MeshStandardMaterial;
     f = new THREE.MeshBasicMaterial({
       color: s.color ?? new THREE.Color(0xffffff),
+      map: s.map ?? null,
       transparent: s.transparent,
       opacity: s.opacity,
       side: s.side,
