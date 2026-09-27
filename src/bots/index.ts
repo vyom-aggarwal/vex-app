@@ -101,7 +101,7 @@ export function makeBot(style: BotStyle, level: BotLevel): Controller {
       for (const g of game.field.goals) {
         if (!forbidden.has(g.id)) continue;
         const d = Math.hypot(P.x - g.x, P.y - g.y);
-        if (d < reach + 4) aim = { x: P.x + ((P.x - g.x) / (d || 1)) * 20, y: P.y + ((P.y - g.y) / (d || 1)) * 20 };
+        if (d < reach + 7) aim = { x: P.x + ((P.x - g.x) / (d || 1)) * 20, y: P.y + ((P.y - g.y) / (d || 1)) * 20 };
       }
       for (const g of game.field.goals) {
         if (g.id === targetGoal || aim !== T) continue;
@@ -115,6 +115,14 @@ export function makeBot(style: BotStyle, level: BotLevel): Controller {
           aim = { x: g.x + nx * 22, y: g.y + ny * 22 };
         }
       }
+      // Ease off near stacked goals so the claw never strikes a stack at speed.
+      const ep = sim.robotPoint(i, e.x, 0, e.z);
+      const nearStack = s.stacks.some((st) => {
+        if (st.levels.length === 0 || st.goalId === targetGoal) return false;
+        const g = game.field.goals.find((x) => x.id === st.goalId)!;
+        return Math.hypot(mToIn(ep.x) - g.x, mToIn(ep.y) - g.y) < 14;
+      });
+      if (nearStack) slow = Math.min(slow, 0.5);
       const ax2 = aim.x - P.x;
       const ay2 = aim.y - P.y;
       const heading = Math.atan2(ay2, ax2);
@@ -186,7 +194,7 @@ export function makeBot(style: BotStyle, level: BotLevel): Controller {
           if (!okPoint(p) || Math.abs(p.x) > 64 || Math.abs(p.y) > 64) continue;
           const up = upAxis(sim.objRot(o.id));
           if (Math.abs(up.z) < 0.88 && !spec.intake.lying) continue;
-          if (game.field.goals.some((g) => Math.hypot(g.x - p.x, g.y - p.y) < 6)) continue;
+          if (game.field.goals.some((g) => Math.hypot(g.x - p.x, g.y - p.y) < (forbidden.has(g.id) ? 22 : 9))) continue;
           if (s.robots.some((r) => r.index !== i && Math.hypot(mToIn(sim.robotPose(r.index).x) - p.x, mToIn(sim.robotPose(r.index).y) - p.y) < 14)) continue;
           const d = Math.hypot(p.x - P.x, p.y - P.y) + (o.kind === 'cup' ? 20 : 0);
           if (d < bd) {

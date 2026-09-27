@@ -70,7 +70,8 @@ const OPP_GOALS: RuleCheck = {
     const out: Out = [];
     for (const r of ctx.robots) {
       const opp = GOALS.filter((g) => g.kind === 'alliance' && g.owner === other(r.alliance));
-      if (opp.some((g) => r.touching.includes(g.id)))
+      const pushed = r.robots.some((j) => ctx.robots.find((x) => x.index === j)?.alliance !== r.alliance);
+      if (!pushed && opp.some((g) => r.touching.includes(g.id)))
         out.push({ rule: '5.3.5', robot: r.index, alliance: r.alliance, level: 'red', text: 'Interacted with an opposing alliance Goal' });
     }
     return out;

@@ -192,6 +192,9 @@ const DETENT_BLEND = 0.25;
 const DETENT_FORCE_GAIN = 14;
 const DETENT_FORCE_BLEND = 0.5;
 const DETENT_MAX_W = 12;
+/** Torque caps (N·m): a robot can overpower the resting detent; a tool drives harder. */
+const DETENT_TAU = 1.5;
+const DETENT_FORCE_TAU = 4;
 const SEAT_TOL = 6 * DEG;
 const SEAT_OMEGA = 0.6;
 const UPRIGHT_COS = Math.cos(28 * DEG);
@@ -275,7 +278,8 @@ export class Sim {
     const f = this.game.field;
     const ground = this.world.createRigidBody(RAPIER.RigidBodyDesc.fixed());
     const hs = inToM(f.size / 2);
-    const wallT = inToM(2);
+    // Colliders are much thicker than the real 2" wall (outward), so nothing can tunnel through.
+    const wallT = 0.3;
     const wallH = inToM(f.wallHeight);
     this.addCollider(
       RAPIER.ColliderDesc.cuboid(hs + wallT * 2, hs + wallT * 2, 0.05).setTranslation(0, 0, -0.05).setFriction(0.8).setCollisionGroups(G_FIELD),
@@ -1181,17 +1185,24 @@ export class Sim {
       let target: number;
       let gain = DETENT_GAIN;
       let blend = DETENT_BLEND;
+      let tauMax = DETENT_TAU;
       if (ds.forceTicks > 0) {
         ds.forceTicks--;
         target = def.detents[ds.forced].angle * DEG;
         gain = DETENT_FORCE_GAIN;
         blend = DETENT_FORCE_BLEND;
+        tauMax = DETENT_FORCE_TAU;
         if (ds.forceTicks === 0) ds.forcedBy = -1;
       } else target = this.nearestDetent(def, ang).angle * DEG;
       const err = wrapAngle(ang - target);
       const wT = clamp(-gain * err, -DETENT_MAX_W, DETENT_MAX_W);
-      const dw = (wT - omega) * blend;
-      b.setAngvel({ x: w.x + axis.x * dw, y: w.y + axis.y * dw, z: w.z + axis.z * dw }, true);
+      // Velocity-level PD applied as a bounded torque: stable for a light body, and it can't
+      // out-push a robot with unbounded force when something blocks it.
+      const pi = b.principalInertia();
+      const I = Math.min(pi.x, pi.y, pi.z);
+      const tau = clamp((I * (wT - omega) * blend) / DT, -tauMax, tauMax);
+      b.resetTorques(true);
+      b.addTorque({ x: axis.x * tau, y: axis.y * tau, z: axis.z * tau }, true);
     });
   }
 

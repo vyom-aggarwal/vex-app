@@ -98,7 +98,6 @@ export const OVERRIDE: GameDefinition = {
       ...GOALS.filter((g) => g.owner === a).map((g) => g.id),
       ...GOALS.filter((g) => g.kind === 'neutral' && QUAD_COLOR[g.region as keyof typeof QUAD_COLOR] === a).map((g) => g.id),
       'G0',
-      ...GOALS.filter((g) => g.kind === 'neutral' && QUAD_COLOR[g.region as keyof typeof QUAD_COLOR] !== a).map((g) => g.id),
     ],
     wantDetents: (a) => FIELD.detents.map((d) => ({ id: d.id, color: a })),
     forbiddenGoals: (a) => GOALS.filter((g) => g.kind === 'alliance' && g.owner !== a).map((g) => g.id),

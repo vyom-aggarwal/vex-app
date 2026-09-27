@@ -42,7 +42,7 @@ test('Bots obey rules in a full 2v2 match (no SG9) and never freeze', async () =
   const calls = s.sim.state.ref.calls;
   console.log(`       calls: ${calls.map((c) => `${c.rule}#${c.robot}:${c.text.slice(0, 22)}`).join(', ') || 'none'}; score ${s.sim.score().red}-${s.sim.score().blue}`);
   ok(!calls.some((c) => c.rule === 'SG9'), 'no opposing-goal interaction');
-  ok(moved.every((m) => m > 120 * 10), 'every bot drove for at least 10 s');
+  ok(moved.every((m) => m > 120 * 10), `every bot drove for at least 10 s (${moved.map((m) => (m / 120).toFixed(0)).join(', ')})`);
 });
 
 test('Pinnacle solo bot runs without errors', async () => {

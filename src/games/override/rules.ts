@@ -74,7 +74,9 @@ const SG9: RuleCheck = {
     const out: Out = [];
     for (const r of ctx.robots) {
       const opp = GOALS.filter((g) => g.kind === 'alliance' && g.owner === other(r.alliance));
-      const hit = opp.some((g) => r.touching.includes(g.id) || r.objects.some((id) => stackedOn(ctx, g.id, id)));
+      // A robot being shoved into the goal by an opponent isn't interacting with it.
+      const pushed = r.robots.some((j) => ctx.robots.find((x) => x.index === j)?.alliance !== r.alliance);
+      const hit = !pushed && opp.some((g) => r.touching.includes(g.id) || r.objects.some((id) => stackedOn(ctx, g.id, id)));
       if (hit) out.push({ rule: 'SG9', robot: r.index, alliance: r.alliance, level: 'major', text: 'Interacted with an opposing Alliance Goal' });
     }
     return out;
