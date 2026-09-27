@@ -5,7 +5,7 @@
 - [x] P2 engine: Rapier world, field loading, drivetrain; engine tests
 - [x] P3 objects, grasp, nesting, Override scoring/rules; tests
 - [x] P4 Pinnacle definition, scoring, rollers; tests
-- [ ] P5 match flow, loaders, violations, skills/solo
+- [x] P5 match flow, loaders, violations, skills/solo
 - [ ] P6 three.js renderer, cameras, quality, 2D view, input
 - [ ] P7 React UI + branding
 - [ ] P8 bots, replays, records
