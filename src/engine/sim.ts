@@ -186,9 +186,12 @@ const packButtons = (c: RobotCommand): number =>
 
 /** Robot hitting a stack faster than this (m/s) knocks it apart from the struck level up. EST. */
 export const BREAK_SPEED = 0.45;
-const DETENT_K = 1.2;
-const DETENT_C = 0.06;
-const DETENT_FORCE_K = 6;
+/** Detent spring as a velocity blend (stable for light bodies): ω → gain·(target − angle). */
+const DETENT_GAIN = 10;
+const DETENT_BLEND = 0.25;
+const DETENT_FORCE_GAIN = 14;
+const DETENT_FORCE_BLEND = 0.5;
+const DETENT_MAX_W = 12;
 const SEAT_TOL = 6 * DEG;
 const SEAT_OMEGA = 0.6;
 const UPRIGHT_COS = Math.cos(28 * DEG);
@@ -317,7 +320,7 @@ export class Sim {
         const s = Math.sin(a * DEG) * R;
         for (const sgn of [-1, 1]) pts.push(u.x * c + axis.x * L * sgn, u.y * c + axis.y * L * sgn, s + axis.z * L * sgn);
       }
-      const desc = RAPIER.ColliderDesc.convexHull(new Float32Array(pts))!.setMass(0.4).setFriction(0.6).setCollisionGroups(G_DETENT);
+      const desc = RAPIER.ColliderDesc.convexHull(new Float32Array(pts))!.setMass(1.0).setFriction(0.6).setCollisionGroups(G_DETENT);
       this.addCollider(desc, body, { t: 'detent', id: d.id });
       const jd = RAPIER.JointData.revolute({ x: inToM(d.pivot.x), y: inToM(d.pivot.y), z: inToM(d.pivot.z) }, { x: 0, y: 0, z: 0 }, axis);
       this.world.createImpulseJoint(jd, ground, body, true);
@@ -1172,17 +1175,19 @@ export class Sim {
       const w = b.angvel();
       const omega = w.x * axis.x + w.y * axis.y + w.z * axis.z;
       let target: number;
-      let kk = DETENT_K;
+      let gain = DETENT_GAIN;
+      let blend = DETENT_BLEND;
       if (ds.forceTicks > 0) {
         ds.forceTicks--;
         target = def.detents[ds.forced].angle * DEG;
-        kk = DETENT_FORCE_K;
+        gain = DETENT_FORCE_GAIN;
+        blend = DETENT_FORCE_BLEND;
         if (ds.forceTicks === 0) ds.forcedBy = -1;
       } else target = this.nearestDetent(def, ang).angle * DEG;
       const err = wrapAngle(ang - target);
-      const tau = -kk * err - DETENT_C * omega;
-      b.resetTorques(true);
-      b.addTorque({ x: axis.x * tau, y: axis.y * tau, z: axis.z * tau }, true);
+      const wT = clamp(-gain * err, -DETENT_MAX_W, DETENT_MAX_W);
+      const dw = (wT - omega) * blend;
+      b.setAngvel({ x: w.x + axis.x * dw, y: w.y + axis.y * dw, z: w.z + axis.z * dw }, true);
     });
   }
 
@@ -1338,6 +1343,20 @@ export class Sim {
         const g = this.goalById.get(o.where)!;
         const toward = (p.vx * (inToM(g.x) - p.x) + p.vy * (inToM(g.y) - p.y)) / (Math.hypot(inToM(g.x) - p.x, inToM(g.y) - p.y) || 1);
         if (toward > BREAK_SPEED || speed > BREAK_SPEED * 1.6) struck.push({ goal: o.where, level: lvl, robot: i });
+      }
+      // Mechanism strike: the effector sweeping fast through a stack's column knocks it apart.
+      const spec0 = this.specs[i];
+      const e0 = effectorPoint(spec0, r.lift);
+      const ep = this.robotPoint(i, e0.x, 0, e0.z);
+      for (const st of s.stacks) {
+        if (st.levels.length === 0) continue;
+        const g = this.goalById.get(st.goalId)!;
+        const dh = mToIn(Math.hypot(ep.x - inToM(g.x), ep.y - inToM(g.y)));
+        if (dh > 1.6) continue;
+        const bottoms = levelBottoms(g.height, st.levels);
+        const ez = e0.z;
+        const lvl = bottoms.findIndex((b, k) => ez >= b && ez <= b + (st.levels[k].kind === 'pins' ? PIN.height : CUP.height));
+        if (lvl >= 0 && speed > BREAK_SPEED) struck.push({ goal: st.goalId, level: lvl, robot: i });
       }
       // Tool contact counts as touching the detent.
       for (const d of s.detents) if (d.forcedBy === i) touching.add(d.id);
