@@ -153,8 +153,8 @@ export function matchLayout(withGoalPins: boolean): ObjectSpawn[] {
 
 /** SG1 starting spots: one robot per quadrant, against the perimeter, clear of goals, loaders and toggles. */
 export const STARTS: StartPose[] = [
-  { alliance: 'red', x: -37.5, y: HALF - 9.2, th: -90 },
-  { alliance: 'red', x: -HALF + 9.2, y: 37.5, th: 0 },
-  { alliance: 'blue', x: 37.5, y: -HALF + 9.2, th: 90 },
-  { alliance: 'blue', x: HALF - 9.2, y: -37.5, th: 180 },
+  { alliance: 'red', x: -37.5, y: HALF, th: -90 },
+  { alliance: 'red', x: -HALF, y: 37.5, th: 0 },
+  { alliance: 'blue', x: 37.5, y: -HALF, th: 90 },
+  { alliance: 'blue', x: HALF, y: -37.5, th: 180 },
 ];

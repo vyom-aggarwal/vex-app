@@ -113,6 +113,7 @@ export interface ObjectSpawn {
 
 export interface StartPose {
   alliance: Alliance;
+  /** Point on the surface the robot's back touches (perimeter or Loader face). */
   x: number;
   y: number;
   /** Heading, degrees; 0 = +x. */

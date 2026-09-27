@@ -411,9 +411,13 @@ export class Sim {
       byAlliance[e.alliance]++;
       const spec = e.spec;
       const model = this.models[i];
+      // Back the robot against the start surface: center = surface point + heading × (length/2 + gap).
+      const off = spec.chassis.length / 2 + 0.05;
+      const cx = st.x + Math.cos(st.th * DEG) * off;
+      const cy = st.y + Math.sin(st.th * DEG) * off;
       const body = this.world.createRigidBody(
         RAPIER.RigidBodyDesc.dynamic()
-          .setTranslation(inToM(st.x), inToM(st.y), 0.002)
+          .setTranslation(inToM(cx), inToM(cy), 0.002)
           .setRotation(quatYaw(st.th * DEG))
           .enabledRotations(false, false, true)
           .setCanSleep(false)

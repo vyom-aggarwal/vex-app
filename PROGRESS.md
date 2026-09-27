@@ -3,8 +3,8 @@
 ## Phases
 - [x] P1 research + cleanup + deps
 - [x] P2 engine: Rapier world, field loading, drivetrain; engine tests
-- [ ] P3 objects, grasp, nesting, Override scoring/rules; tests
-- [ ] P4 Pinnacle definition, scoring, rollers; tests
+- [x] P3 objects, grasp, nesting, Override scoring/rules; tests
+- [x] P4 Pinnacle definition, scoring, rollers; tests
 - [ ] P5 match flow, loaders, violations, skills/solo
 - [ ] P6 three.js renderer, cameras, quality, 2D view, input
 - [ ] P7 React UI + branding
@@ -24,6 +24,8 @@
 - Toggles/rollers: free revolute prism + engine detent torque (handles wrap); tools force a detent target.
 - Robot chassis: frictionless collider + per-wheel force model (drivetrain.ts), shared with builder stats.
 - Pinnacle 5.3.1 "opponent side": interpreted as past the field centerline (EST).
+- Stacks can't be rammed through the goal body, so a fast effector sweep through a stack column breaks it.
+- Pinnacle rollers reuse the toggle prism; seated color counts (robot contact ignored, EST). Red card zeroes the team.
 - Replay snapshots (Rapier) kept in memory only; saved replays = seed + specs + inputs (localStorage size).
 
 ## Open TODOs / EST values
