@@ -37,41 +37,11 @@
 - Bot replays depend on bot code: a change to src/bots invalidates older replays that include bots.
 
 ## EST values (not dimensioned in the manuals, or tuned)
-- Override:
-  - loader center x ±68.3
-  - loader heights 14.37 / 22.97 (lowered/raised)
-  - Load Zone bounds |x| ≥ 46.6, |y| ≥ 58.5
-  - Midfield inner edge |x|+|y| ≤ 22.72
-  - Autonomous Line tape 2.5 wide
-  - cross-arm pin offset 4.75
-  - toggle overhang 0.4 in and face order (+120° shows the opposing color)
-  - neutral-goal footprints
-  - loader capacity 6
-- Pinnacle:
-  - every coordinate
-  - field interior 140.4
-  - roller length 25.6, height 13.2, face order, starting yellow
-  - goal, pin, cup and loader sizes (Override values used)
-  - which side of each cup is up
-  - start areas
-  - "pinnacle" = 1 Cup + 1 Pin unit
-- Physics:
-  - piece masses 0.06 / 0.05 kg
-  - pin insert 2.93 (collar rests on the rim)
-  - snap radius 0.6 in, window +3.5 / −1.2 in
-  - break speed 0.8 m/s
-  - detent gains and torque caps
-- Motors and mechanisms:
-  - V5 stall torque 2.1 N·m at 100 rpm (5.5 W = half)
-  - wheel friction μ and rolling resistance
-  - mass model
-  - lift speeds (~14 in/s per 11 W)
-  - wrist/claw timings
-  - pneumatic budget ~30 strokes/tank
-  - tool reach/timing
-- Rules and timing:
-  - load delay 1 s
-  - SG13 lingering 3 s
-  - SG7 1 in line slack
-  - holding detection heuristic
-  - Pinnacle alliance has no pause between periods
+- Override: loader center x ±68.3, heights 14.37/22.97; Load Zones |x|≥46.6, |y|≥58.5; Midfield |x|+|y|≤22.72;
+  Auto Line tape 2.5; cross-arm offset 4.75; toggle overhang 0.4 + face order; neutral footprints; loader capacity 6.
+- Pinnacle: all coordinates; interior 140.4; roller 25.6 long at 13.2, face order, starts yellow; goal/pin/cup/loader
+  sizes (Override values); cup up-sides; start areas; "pinnacle" = 1 Cup + 1 Pin unit; no pause between periods.
+- Physics: piece masses 0.06/0.05 kg; pin insert 2.93; snap 0.6 in (+3.5/−1.2 window); break speed 0.8 m/s; detent gains/caps.
+- Motors/mechanisms: V5 stall 2.1 N·m @100 rpm (5.5 W = half); wheel μ, rolling resistance; mass model; lift ~14 in/s
+  per 11 W; wrist/claw timing; ~30 air strokes/tank; tool reach/timing.
+- Rules: load delay 1 s; SG13 lingering 3 s; SG7 1 in slack; holding-detection heuristic.
