@@ -185,7 +185,7 @@ const packButtons = (c: RobotCommand): number =>
   (c.gripPin ? BTN.gripPin : 0) | (c.gripCup ? BTN.gripCup : 0) | (c.wrist ? BTN.wrist : 0) | (c.tool ? BTN.tool : 0);
 
 /** Robot hitting a stack faster than this (m/s) knocks it apart from the struck level up. EST. */
-export const BREAK_SPEED = 0.45;
+export const BREAK_SPEED = 0.8;
 /** Detent spring as a velocity blend (stable for light bodies): ω → gain·(target − angle). */
 const DETENT_GAIN = 10;
 const DETENT_BLEND = 0.25;
