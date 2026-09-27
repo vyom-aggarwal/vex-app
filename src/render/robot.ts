@@ -5,6 +5,32 @@ import type { Alliance, RobotSpec } from '../shared/types';
 import { inToM } from '../shared/units';
 import { COLORS, mat } from './materials';
 
+const plateCache = new Map<string, THREE.CanvasTexture>();
+
+/** VEX-style license plate: team number in white on the alliance/accent color. */
+function plateTexture(num: string, color: number): THREE.CanvasTexture | null {
+  if (typeof document === 'undefined') return null;
+  const key = `${num}:${color}`;
+  const hit = plateCache.get(key);
+  if (hit) return hit;
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 56;
+  const g = c.getContext('2d');
+  if (!g) return null;
+  g.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+  g.fillRect(0, 0, 256, 56);
+  g.fillStyle = '#ffffff';
+  g.font = 'bold 40px system-ui, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(num.slice(0, 8) || 'ZDRIVE', 128, 30);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  plateCache.set(key, t);
+  return t;
+}
+
 /** A robot built from its spec, in the engine robot frame (+x forward, +y left, +z up), meters. */
 export class RobotMesh {
   readonly group = new THREE.Group();
@@ -22,15 +48,27 @@ export class RobotMesh {
     };
     const c = spec.chassis;
     const baseH = CHASSIS_BASE - CLEARANCE;
-    const team = alliance ? COLORS[alliance] : 0x8a93a0;
+    const team = spec.look?.accent ?? (alliance ? COLORS[alliance] : 0x8a93a0);
+    const frame = spec.look?.chassis ?? COLORS.metal;
     // Drive base: side rails, cross members, bumpers in alliance color.
-    this.group.add(m(c.length, 1, baseH, COLORS.metal, 0, c.width / 2 - 0.5, CLEARANCE + baseH / 2));
-    this.group.add(m(c.length, 1, baseH, COLORS.metal, 0, -c.width / 2 + 0.5, CLEARANCE + baseH / 2));
+    this.group.add(m(c.length, 1, baseH, frame, 0, c.width / 2 - 0.5, CLEARANCE + baseH / 2));
+    this.group.add(m(c.length, 1, baseH, frame, 0, -c.width / 2 + 0.5, CLEARANCE + baseH / 2));
     this.group.add(m(1, c.width - 2, 1, COLORS.darkMetal, c.length / 2 - 1.5, 0, CLEARANCE + 1));
     this.group.add(m(1, c.width - 2, 1, COLORS.darkMetal, -c.length / 2 + 1.5, 0, CLEARANCE + 1));
     this.group.add(m(c.length - 2, c.width - 2, 0.25, COLORS.darkMetal, 0, 0, CHASSIS_BASE - 0.3));
     this.group.add(m(c.length + 0.4, 0.6, 2.2, team, 0, c.width / 2 + 0.3, 2.3));
     this.group.add(m(c.length + 0.4, 0.6, 2.2, team, 0, -c.width / 2 - 0.3, 2.3));
+    // Team number license plates on both sides.
+    const plate = plateTexture(spec.team?.number || '', team);
+    if (plate) {
+      for (const s of [1, -1]) {
+        const p = new THREE.Mesh(new THREE.PlaneGeometry(inToM(Math.min(9, c.length - 2)), inToM(2)), new THREE.MeshStandardMaterial({ map: plate, roughness: 0.6 }));
+        p.position.set(0, inToM(s * (c.width / 2 + 0.62)), inToM(2.3));
+        // Front face outward (±y) with the text upright: +y side needs an extra half-turn about Y.
+        p.rotation.set(Math.PI / 2, s > 0 ? Math.PI : 0, 0);
+        this.group.add(p);
+      }
+    }
     // Wheels
     const dm = buildDriveModel(spec);
     const r = spec.drive.wheelDia / 2;

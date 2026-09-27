@@ -28,7 +28,7 @@ test('Bots obey rules in a full 2v2 match (no SG9) and never freeze', async () =
     { spec: p[1], alliance: 'blue', driver: { style: 'mixed', level: 'hard' }, slot: 0 },
     { spec: p[2], alliance: 'blue', driver: { style: 'defender', level: 'easy' }, slot: 1 },
   ];
-  const ctl = robots.map((r) => (r.driver === 'player' ? null : makeBot(r.driver.style, r.driver.level)));
+  const ctl = robots.map((r) => (typeof r.driver === 'string' ? null : makeBot(r.driver.style, r.driver.level)));
   const s = await Session.create({ game: OVERRIDE, modeId: 'match', robots, seed: 11 }, ctl);
   s.start();
   const moved = robots.map(() => 0);

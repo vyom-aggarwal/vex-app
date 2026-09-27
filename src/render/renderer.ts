@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { GameDefinition } from '../engine/types';
 import { lerpAngle } from '../shared/math';
 import type { Alliance, PinType, RobotSpec } from '../shared/types';
@@ -8,13 +9,14 @@ import { COLORS, setFlat, shadowAll } from './materials';
 import { cupMesh, pinMesh } from './pieces';
 import { RobotMesh } from './robot';
 
-export type Quality = 'low' | 'medium' | 'high';
-export type CameraMode = 'driver' | 'driverTrack' | 'chase' | 'overhead' | 'audience';
-export const CAMERA_MODES: CameraMode[] = ['driver', 'driverTrack', 'chase', 'overhead', 'audience'];
+export type Quality = 'low' | 'medium' | 'high' | 'ultra';
+export type CameraMode = 'driver' | 'driverTrack' | 'chase' | 'orbit' | 'overhead' | 'audience';
+export const CAMERA_MODES: CameraMode[] = ['driver', 'driverTrack', 'chase', 'orbit', 'overhead', 'audience'];
 export const CAMERA_LABELS: Record<CameraMode, string> = {
   driver: 'Driver Station',
   driverTrack: 'Driver Station (tracking)',
   chase: 'Chase',
+  orbit: 'Orbit',
   overhead: 'Overhead 2D',
   audience: 'Audience',
 };
@@ -25,7 +27,23 @@ export interface WorldInfo {
   robots: { spec: RobotSpec; alliance: Alliance }[];
 }
 
+export interface RenderStats {
+  calls: number;
+  triangles: number;
+  geometries: number;
+  textures: number;
+  drawMs: number;
+}
+
 const e2t = (x: number, y: number, z: number): THREE.Vector3 => new THREE.Vector3(x, z, -y);
+
+/** Pixel ratio, shadow map size and antialiasing per quality tier. */
+const TIERS: Record<Quality, { dpr: number; shadow: number; aa: boolean; soft: boolean }> = {
+  low: { dpr: 0.85, shadow: 0, aa: false, soft: false },
+  medium: { dpr: 1.25, shadow: 1024, aa: true, soft: false },
+  high: { dpr: 2, shadow: 2048, aa: true, soft: true },
+  ultra: { dpr: 2.5, shadow: 4096, aa: true, soft: true },
+};
 
 /**
  * One WebGL context for the whole app: matches, replays and the builder turntable all render through
@@ -36,10 +54,12 @@ export class ZRenderer {
   canvas: HTMLCanvasElement;
   private scene = new THREE.Scene();
   private root = new THREE.Group();
-  private persp = new THREE.PerspectiveCamera(55, 1, 0.05, 60);
+  private persp = new THREE.PerspectiveCamera(50, 1, 0.05, 80);
   private ortho = new THREE.OrthographicCamera(-2, 2, 2, -2, 0.1, 30);
-  private hemi = new THREE.HemisphereLight(0xdfe8ff, 0x30343a, 1.1);
-  private sun = new THREE.DirectionalLight(0xffffff, 1.6);
+  private hemi = new THREE.HemisphereLight(0xdbe4f2, 0x3a3f48, 1.25);
+  private sun = new THREE.DirectionalLight(0xfff6ea, 2.1);
+  private fill = new THREE.DirectionalLight(0xbfd4ff, 0.55);
+  private orbit: OrbitControls | null = null;
   private fieldGroup: THREE.Group | null = null;
   private detents: THREE.Group[] = [];
   private objMeshes: THREE.Group[] = [];
@@ -47,31 +67,41 @@ export class ZRenderer {
   private previewGroup: THREE.Group | null = null;
   private previewRobot: RobotMesh | null = null;
   private previewAngle = 0;
+  private preview2d = false;
   private quality: Quality = 'medium';
   private aa = true;
   private flat = false;
   private camPos = new THREE.Vector3();
   private camLook = new THREE.Vector3();
   private camInit = false;
+  private lastDraw = 0;
   mode: CameraMode = 'driver';
   alliance: Alliance = 'red';
   fieldSize = 3.57;
+  /** Driver height (in); the driver camera sits at eye level (~93% of height). */
+  driverHeight = 68;
 
   constructor(quality: Quality) {
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'zd-canvas';
     this.quality = quality;
-    this.aa = quality !== 'low';
+    this.aa = TIERS[quality].aa;
     this.createRenderer();
     this.root.rotation.x = -Math.PI / 2;
-    this.scene.add(this.root, this.hemi, this.sun, this.sun.target);
+    this.scene.add(this.root, this.hemi, this.sun, this.sun.target, this.fill);
     this.scene.background = new THREE.Color(COLORS.bg);
-    this.sun.position.set(-2, 6, 3);
-    this.sun.shadow.camera.left = -3;
-    this.sun.shadow.camera.right = 3;
-    this.sun.shadow.camera.top = 3;
-    this.sun.shadow.camera.bottom = -3;
-    this.sun.shadow.bias = -0.0005;
+    this.scene.fog = new THREE.Fog(COLORS.bg, 9, 26);
+    this.sun.position.set(-2.2, 6.5, 2.8);
+    this.fill.position.set(3, 4, -3);
+    const sc = this.sun.shadow.camera;
+    sc.left = -2.6;
+    sc.right = 2.6;
+    sc.top = 2.6;
+    sc.bottom = -2.6;
+    sc.near = 1;
+    sc.far = 14;
+    this.sun.shadow.bias = -0.0004;
+    this.sun.shadow.normalBias = 0.02;
     this.setQuality(quality);
   }
 
@@ -79,12 +109,23 @@ export class ZRenderer {
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: this.aa, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.05;
+    this.orbit?.dispose();
+    this.orbit = new OrbitControls(this.persp, this.canvas);
+    this.orbit.enableDamping = true;
+    this.orbit.minDistance = 0.6;
+    this.orbit.maxDistance = 9;
+    this.orbit.maxPolarAngle = Math.PI * 0.48;
+    this.orbit.enabled = this.mode === 'orbit';
+  }
+
+  getQuality(): Quality {
+    return this.quality;
   }
 
   setQuality(q: Quality): void {
-    const wantAA = q !== 'low';
-    if (wantAA !== this.aa) {
-      // Antialiasing is fixed per context: replace it (the old one is released first, so still one context).
+    const t = TIERS[q];
+    if (t.aa !== this.aa) {
       // A canvas keeps its first context, so the replacement renderer gets a fresh canvas.
       this.renderer.dispose();
       this.renderer.forceContextLoss();
@@ -92,20 +133,27 @@ export class ZRenderer {
       this.canvas = document.createElement('canvas');
       this.canvas.className = old.className;
       old.parentElement?.replaceChild(this.canvas, old);
-      this.aa = wantAA;
+      this.aa = t.aa;
       this.createRenderer();
     }
     this.quality = q;
-    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio : 1;
-    this.renderer.setPixelRatio(q === 'low' ? Math.min(1, dpr) * 0.85 : q === 'medium' ? Math.min(dpr, 1.5) : Math.min(dpr, 2));
-    const shadows = q !== 'low';
+    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+    this.renderer.setPixelRatio(Math.min(dpr, t.dpr));
+    const shadows = t.shadow > 0;
     this.renderer.shadowMap.enabled = shadows;
-    this.renderer.shadowMap.type = q === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+    this.renderer.shadowMap.type = t.soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
     this.sun.castShadow = shadows;
-    this.sun.shadow.mapSize.set(q === 'high' ? 2048 : 1024, q === 'high' ? 2048 : 1024);
-    this.sun.shadow.map?.dispose();
-    this.sun.shadow.map = null;
+    if (shadows) {
+      this.sun.shadow.mapSize.set(t.shadow, t.shadow);
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.map = null;
+    }
     this.resize();
+  }
+
+  setDriverHeight(inches: number): void {
+    this.driverHeight = inches;
+    this.camInit = false;
   }
 
   resize(): void {
@@ -115,13 +163,18 @@ export class ZRenderer {
     this.renderer.setSize(w, h, false);
     this.persp.aspect = w / h;
     this.persp.updateProjectionMatrix();
-    const half = (this.fieldSize / 2) * 1.08;
+    const half = (this.previewGroup ? 0.55 : this.fieldSize / 2) * 1.06;
     const a = w / h;
     this.ortho.left = -half * Math.max(1, a);
     this.ortho.right = half * Math.max(1, a);
     this.ortho.top = half * Math.max(1, 1 / a);
     this.ortho.bottom = -half * Math.max(1, 1 / a);
     this.ortho.updateProjectionMatrix();
+  }
+
+  stats(): RenderStats {
+    const i = this.renderer.info;
+    return { calls: i.render.calls, triangles: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures, drawMs: this.lastDraw };
   }
 
   // -------------------------------------------------------------------------------------------
@@ -147,6 +200,7 @@ export class ZRenderer {
     this.detents = f.detents;
     this.fieldSize = inToM(game.field.size);
     shadowAll(this.fieldGroup, false, true);
+    for (const d of this.detents) shadowAll(d, true, true);
     this.root.add(this.fieldGroup);
     this.camInit = false;
     this.applyFlat();
@@ -169,7 +223,7 @@ export class ZRenderer {
     this.applyFlat();
   }
 
-  /** Add meshes for objects spawned since the last call (Free Drive). */
+  /** Add meshes for objects spawned since the last call (Free Drive) and update visibility. */
   syncObjects(w: WorldInfo): void {
     for (let i = this.objMeshes.length; i < w.objects.length; i++) {
       const o = w.objects[i];
@@ -185,37 +239,30 @@ export class ZRenderer {
   /** Apply interpolated poses (Sim.poses() layout). */
   applyPoses(prev: Float32Array, cur: Float32Array, alpha: number): void {
     const n = this.objMeshes.length;
-    const lerp = (i: number) => prev[i] + (cur[i] - prev[i]) * alpha;
-    const qa = new THREE.Quaternion();
-    const qb = new THREE.Quaternion();
     const same = prev.length === cur.length;
     const P = same ? prev : cur;
+    const a = same ? Math.min(1, Math.max(0, alpha)) : 1;
+    const lerp = (i: number) => P[i] + (cur[i] - P[i]) * a;
+    const qa = new THREE.Quaternion();
+    const qb = new THREE.Quaternion();
     let i = 0;
     for (let k = 0; k < n && i + 7 <= cur.length; k++, i += 7) {
       const m = this.objMeshes[k];
-      if (!same) {
-        m.position.set(cur[i], cur[i + 1], cur[i + 2]);
-        m.quaternion.set(cur[i + 3], cur[i + 4], cur[i + 5], cur[i + 6]);
-        continue;
-      }
       m.position.set(lerp(i), lerp(i + 1), lerp(i + 2));
       qa.set(P[i + 3], P[i + 4], P[i + 5], P[i + 6]);
       qb.set(cur[i + 3], cur[i + 4], cur[i + 5], cur[i + 6]);
-      m.quaternion.slerpQuaternions(qa, qb, alpha);
+      m.quaternion.slerpQuaternions(qa, qb, a);
     }
     for (const r of this.robotMeshes) {
-      const x = same ? lerp(i) : cur[i];
-      const y = same ? lerp(i + 1) : cur[i + 1];
-      const z = same ? lerp(i + 2) : cur[i + 2];
-      const th = same ? lerpAngle(P[i + 3], cur[i + 3], alpha) : cur[i + 3];
-      r.group.position.set(x, y, z);
-      r.group.rotation.set(0, 0, th);
-      r.update(same ? lerp(i + 4) : cur[i + 4], same ? lerp(i + 5) : cur[i + 5]);
+      if (i + 6 > cur.length) break;
+      r.group.position.set(lerp(i), lerp(i + 1), 0);
+      r.group.rotation.set(0, 0, lerpAngle(P[i + 3], cur[i + 3], a));
+      r.update(lerp(i + 4), lerp(i + 5));
       i += 6;
     }
     for (const d of this.detents) {
-      const a = same ? lerpAngle(P[i], cur[i], alpha) : cur[i];
-      (d.userData.spin as THREE.Group).rotation.x = a;
+      if (i >= cur.length) break;
+      (d.userData.spin as THREE.Group).rotation.x = lerpAngle(P[i], cur[i], a);
       i++;
     }
   }
@@ -231,13 +278,24 @@ export class ZRenderer {
       this.flat = flat;
       this.applyFlat();
     }
+    if (this.orbit) {
+      this.orbit.enabled = mode === 'orbit';
+      if (mode === 'orbit') {
+        const side = this.alliance === 'red' ? 1 : -1;
+        this.persp.position.copy(e2t(0, side * (this.fieldSize / 2 + 1.6), 2.6));
+        this.orbit.target.copy(e2t(0, 0, 0));
+        this.orbit.update();
+      }
+    }
     this.camInit = false;
   }
 
   private applyFlat(): void {
     setFlat(this.root, this.flat);
     this.sun.visible = !this.flat;
-    this.hemi.intensity = this.flat ? 2.2 : 1.1;
+    this.fill.visible = !this.flat;
+    this.hemi.intensity = this.flat ? 2.4 : 1.25;
+    this.scene.fog = this.flat || this.previewGroup ? null : new THREE.Fog(COLORS.bg, 9, 26);
   }
 
   /** Update the active camera to follow robot `focus` (index into the robot list). */
@@ -253,26 +311,46 @@ export class ZRenderer {
       this.ortho.lookAt(e2t(0, 0, 0));
       return this.ortho;
     }
+    if (this.mode === 'orbit' && this.orbit) {
+      if (this.persp.fov !== 50) {
+        this.persp.fov = 50;
+        this.persp.updateProjectionMatrix();
+      }
+      this.orbit.update();
+      return this.persp;
+    }
+    const eye = inToM(this.driverHeight * 0.93);
+    // Drivers stand in the station, about a meter behind the field wall.
+    const station = S / 2 + 1.0;
     let pos: THREE.Vector3;
     let look: THREE.Vector3;
+    let fov = 50;
     switch (this.mode) {
       case 'driver':
-        pos = e2t(0, side * (S / 2 + 0.85), 1.55);
-        look = e2t(0, -side * 0.2, 0);
+        pos = e2t(0, side * station, eye);
+        look = e2t(0, -side * 0.25, 0);
+        fov = 52;
         break;
       case 'driverTrack':
-        pos = e2t(0, side * (S / 2 + 0.85), 1.55);
-        look = e2t(rp.x, rp.y, 0.1);
+        pos = e2t(0, side * station, eye);
+        look = e2t(rp.x * 0.85, rp.y * 0.85 - side * 0.15, 0.1);
+        fov = 46;
         break;
       case 'chase':
-        pos = e2t(rp.x - Math.cos(th) * 1.0, rp.y - Math.sin(th) * 1.0, 0.75);
-        look = e2t(rp.x + Math.cos(th) * 0.6, rp.y + Math.sin(th) * 0.6, 0.1);
+        pos = e2t(rp.x - Math.cos(th) * 0.95, rp.y - Math.sin(th) * 0.95, 0.72);
+        look = e2t(rp.x + Math.cos(th) * 0.7, rp.y + Math.sin(th) * 0.7, 0.12);
+        fov = 62;
         break;
       default:
-        pos = e2t(-(S / 2 + 1.4), 0, 2.1);
-        look = e2t(0, 0, 0);
+        pos = e2t(-(S / 2 + 1.7), 0, 2.3);
+        look = e2t(0.2, 0, 0);
+        fov = 48;
     }
-    const k = this.camInit ? 1 - Math.exp(-dt * (this.mode === 'chase' ? 6 : 8)) : 1;
+    if (this.persp.fov !== fov) {
+      this.persp.fov = fov;
+      this.persp.updateProjectionMatrix();
+    }
+    const k = this.camInit ? 1 - Math.exp(-dt * (this.mode === 'chase' ? 7 : 9)) : 1;
     this.camPos.lerp(pos, k);
     this.camLook.lerp(look, k);
     if (!this.camInit) {
@@ -287,8 +365,10 @@ export class ZRenderer {
   }
 
   render(focus: number, dt: number): void {
+    const t0 = performance.now();
     const cam = this.updateCamera(focus, dt);
     this.renderer.render(this.scene, cam);
+    this.lastDraw = performance.now() - t0;
   }
 
   // -------------------------------------------------------------------------------------------
@@ -302,30 +382,35 @@ export class ZRenderer {
     this.previewRobot = null;
   }
 
-  showPreview(spec: RobotSpec, envelope: { footprint: number; height: number | null }): void {
+  showPreview(spec: RobotSpec, envelope: { footprint: number; height: number | null }, alliance: Alliance | null = null): void {
     this.clearPreview();
     if (this.fieldGroup) this.fieldGroup.visible = false;
     for (const m of this.objMeshes) m.visible = false;
     for (const r of this.robotMeshes) r.group.visible = false;
+    for (const d of this.detents) d.visible = false;
     const g = new THREE.Group();
-    const pad = new THREE.Mesh(new THREE.CircleGeometry(0.75, 48), new THREE.MeshStandardMaterial({ color: COLORS.tile, roughness: 0.95 }));
+    const pad = new THREE.Mesh(new THREE.CircleGeometry(0.75, 64), new THREE.MeshStandardMaterial({ color: COLORS.tile, roughness: 0.95 }));
     pad.receiveShadow = true;
     g.add(pad);
-    const robot = new RobotMesh(spec, null);
+    const grid = new THREE.GridHelper(1.5, 6, 0x4a505a, 0x363b44);
+    grid.rotation.x = Math.PI / 2;
+    grid.position.z = 0.001;
+    g.add(grid);
+    const robot = new RobotMesh(spec, alliance);
     shadowAll(robot.group, true, true);
     g.add(robot.group);
-    // Expansion envelope (footprint × height) as a wireframe box.
+    // Expansion envelope (footprint × height) and the 18" starting cube.
     const H = inToM(envelope.height ?? 60);
     const F = inToM(envelope.footprint);
     const env = new THREE.LineSegments(
       new THREE.EdgesGeometry(new THREE.BoxGeometry(F, F, H)),
-      new THREE.LineBasicMaterial({ color: envelope.height === null ? 0x6aa6ff : 0xf2c230, transparent: true, opacity: 0.5 }),
+      new THREE.LineBasicMaterial({ color: envelope.height === null ? 0x6aa6ff : 0xf2c230, transparent: true, opacity: 0.45 }),
     );
     env.position.z = H / 2;
     g.add(env);
     const start = new THREE.LineSegments(
       new THREE.EdgesGeometry(new THREE.BoxGeometry(inToM(18), inToM(18), inToM(18))),
-      new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35 }),
+      new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 }),
     );
     start.position.z = inToM(9);
     g.add(start);
@@ -334,6 +419,11 @@ export class ZRenderer {
     this.root.add(g);
     this.flat = false;
     this.applyFlat();
+    this.resize();
+  }
+
+  setPreview2d(on: boolean): void {
+    this.preview2d = on;
   }
 
   /** Preview lift/wrist pose so the builder can show the robot raised. */
@@ -343,11 +433,23 @@ export class ZRenderer {
 
   renderPreview(dt: number): void {
     if (!this.previewGroup) return;
+    if (this.preview2d) {
+      this.previewRobot!.group.rotation.z = Math.PI / 2;
+      this.ortho.position.copy(e2t(0, 0, 3));
+      this.ortho.up.copy(e2t(0, 1, 0));
+      this.ortho.lookAt(e2t(0, 0, 0));
+      this.renderer.render(this.scene, this.ortho);
+      return;
+    }
     this.previewAngle += dt * 0.6;
     this.previewRobot!.group.rotation.z = this.previewAngle;
+    if (this.persp.fov !== 40) {
+      this.persp.fov = 40;
+      this.persp.updateProjectionMatrix();
+    }
     this.persp.up.set(0, 1, 0);
-    this.persp.position.copy(e2t(1.05, -0.75, 0.8));
-    this.persp.lookAt(e2t(0, 0, 0.2));
+    this.persp.position.copy(e2t(1.15, -0.85, 0.85));
+    this.persp.lookAt(e2t(0, 0, 0.18));
     this.renderer.render(this.scene, this.persp);
   }
 
@@ -361,18 +463,22 @@ export class ZRenderer {
     if (!g) return '';
     const s = Math.min(src.width, src.height);
     g.drawImage(src, (src.width - s) / 2, (src.height - s) / 2, s, s, 0, 0, size, size);
-    return c.toDataURL('image/jpeg', 0.8);
+    return c.toDataURL('image/jpeg', 0.82);
   }
 
   endPreview(): void {
     this.clearPreview();
     if (this.fieldGroup) this.fieldGroup.visible = true;
     for (const r of this.robotMeshes) r.group.visible = true;
+    for (const d of this.detents) d.visible = true;
+    this.applyFlat();
+    this.resize();
   }
 
   dispose(): void {
     this.clearPreview();
     this.clearWorld();
+    this.orbit?.dispose();
     this.renderer.dispose();
   }
 }

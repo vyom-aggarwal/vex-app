@@ -59,6 +59,9 @@ export interface RobotSpec {
   effector: { type: EffectorType; wrist: boolean; actuation: 'motor' | 'pneumatic'; motors: MotorW[] };
   tool: { type: ToolType; motors: MotorW[] };
   pneumatics: { tanks: number; cylinders: number };
+  /** Optional identity and appearance (older saved robots lack these). */
+  team?: { name: string; number: string };
+  look?: { chassis: number; accent: number | null };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -121,8 +124,8 @@ export type ModeId = 'match' | 'match1v1' | 'skills' | 'free' | 'alliance' | 'so
 export interface RobotEntry {
   spec: RobotSpec;
   alliance: Alliance;
-  /** 'player' is the local driver; bots are keyed by style/level. */
-  driver: 'player' | { style: BotStyle; level: BotLevel };
+  /** 'player' is the local driver, 'dummy' a robot that never moves; bots are keyed by style/level. */
+  driver: 'player' | 'dummy' | { style: BotStyle; level: BotLevel };
   /** Starting slot index within the game's start positions for this alliance. */
   slot: number;
 }

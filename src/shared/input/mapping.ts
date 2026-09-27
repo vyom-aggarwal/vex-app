@@ -4,7 +4,8 @@ import { ASSIST, type Alliance, type DriveType, type RobotCommand } from '../typ
 /** Pure driver-input → RobotCommand mapping (no DOM), so it can be tested headlessly. */
 
 export type DriveMode = 'tank' | 'arcade' | 'split';
-export type Curve = 'linear' | 'cubic';
+/** Stick response exponent: 1 = linear, 3 = cubic (fine control near center). */
+export type Curve = number;
 
 export interface DriverTuning {
   driveMode: DriveMode;
@@ -21,7 +22,7 @@ export interface DriverTuning {
 export const DEFAULT_TUNING: DriverTuning = {
   driveMode: 'split',
   deadzone: 0.08,
-  curve: 'linear',
+  curve: 1,
   maxSpeed: 1,
   fieldCentric: false,
   assistAlign: true,
@@ -84,7 +85,8 @@ export function applyDeadzone(x: number, y: number, dz: number): [number, number
 }
 
 export function applyCurve(v: number, curve: Curve): number {
-  return curve === 'cubic' ? v * v * v : v;
+  const e = typeof curve === 'number' && curve >= 1 ? curve : 1;
+  return Math.sign(v) * Math.abs(v) ** e;
 }
 
 export function assistMask(t: DriverTuning): number {

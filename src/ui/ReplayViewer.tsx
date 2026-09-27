@@ -6,10 +6,11 @@ import type { GameDefinition } from '../engine/types';
 import { formatClock, timeRemaining } from '../shared/matchTimer';
 import { replayFileName, type Replay } from '../shared/replay';
 import { TICK_HZ } from '../shared/timestep';
-import { CAMERA_LABELS, CAMERA_MODES, type ZRenderer } from '../render/renderer';
+import { CAMERA_LABELS, CAMERA_MODES, type CameraMode, type ZRenderer } from '../render/renderer';
 import { Wordmark, phaseLabel } from './chrome';
 import { downloadJson } from './download';
 import { attachCanvas, getRenderer } from './host';
+import { resolveQuality } from './quality';
 import type { Settings } from './settings';
 
 /** Replay viewer: re-simulates the run with scrubbing (snapshots every 10 s), speed and camera switching. */
@@ -21,7 +22,7 @@ export default function ReplayViewer({ game, replay, settings, onExit }: { game:
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState(1);
   const [focus, setFocus] = useState(0);
-  const [cam, setCam] = useState(settings.camera);
+  const [cam, setCam] = useState<CameraMode>(settings.view === '2d' ? 'overhead' : settings.camera);
   const [info, setInfo] = useState({ clock: '0:00', phase: 'pre' as ReturnType<typeof phaseLabel> | string, red: 0, blue: 0 });
   const ctl = useRef({ playing: true, speed: 1, focus: 0, seekTo: -1 });
   ctl.current.playing = playing;
@@ -34,11 +35,11 @@ export default function ReplayViewer({ game, replay, settings, onExit }: { game:
     let detach = () => {};
     (async () => {
       await loadPhysics();
-      const r = await getRenderer(settings.quality);
+      const r = await getRenderer(resolveQuality(settings.quality));
       if (!live || !host.current) return;
       rendererRef.current = r;
       detach = attachCanvas(r, host.current);
-      const bots = replay.entries.map((e) => (e.driver === 'player' ? null : makeBot(e.driver.style, e.driver.level)));
+      const bots = replay.entries.map((e) => (typeof e.driver === 'string' ? null : makeBot(e.driver.style, e.driver.level)));
       const p = new ReplayPlayer(replay, { game, modeId: replay.mode, robots: replay.entries, seed: replay.seed, autoRef: replay.autoRef, worlds: replay.worlds }, bots);
       playerRef.current = p;
       r.alliance = replay.entries[0]?.alliance ?? 'red';

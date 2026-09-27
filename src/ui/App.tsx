@@ -1,42 +1,60 @@
-import { useCallback, useEffect, useState } from 'react';
-import type { GameId } from '../shared/types';
-import { Footer, GAMES, TAGLINE, Wordmark, navigate } from './chrome';
-import { GameHome } from './GameHome';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import type { Replay } from '../shared/replay';
+import { loadJson, saveJson } from '../shared/storage';
+import type { GameId, ModeId } from '../shared/types';
+import { CONFIG_SECTIONS, Footer, GAMES, GameSwitcher, Link, Shell, TAGLINE, Wordmark, navigate, type ConfigSection, type Page } from './chrome';
+import { useGame } from './host';
+import { lineup } from './lineup';
+import { ConfigurePage } from './pages/ConfigurePage';
+import { PlayPage } from './pages/PlayPage';
+import { RecordsPage } from './pages/RecordsPage';
+import { loadDraft } from './robots';
 import { loadSettings, saveSettings, type Settings } from './settings';
+import { setAudioLevels } from './sound';
 
-type Route = { page: 'home' } | { page: 'game'; game: GameId };
+const GameView = lazy(() => import('./GameView'));
+const ReplayViewer = lazy(() => import('./ReplayViewer'));
+
+type Route = { game: GameId | null; page: Page; section: ConfigSection };
 
 function parse(path: string): Route {
-  const p = path.replace(/\/+$/, '').toLowerCase();
-  if (p === '/override') return { page: 'game', game: 'override' };
-  if (p === '/pinnacle') return { page: 'game', game: 'pinnacle' };
-  return { page: 'home' };
+  const parts = path.toLowerCase().split('/').filter(Boolean);
+  const game = parts[0] === 'override' || parts[0] === 'pinnacle' ? (parts[0] as GameId) : null;
+  const page = (['play', 'configure', 'records'] as const).find((p) => p === parts[1]) ?? 'home';
+  const section = CONFIG_SECTIONS.find((s) => s.id === parts[2])?.id ?? 'robot';
+  return { game, page: game ? page : 'home', section };
 }
 
-function Home() {
+function applyTheme(t: Settings['theme']): void {
+  const dark = t === 'dark' || (t === 'system' && !window.matchMedia?.('(prefers-color-scheme: light)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+}
+
+function Home({ game }: { game: GameId }) {
   return (
     <div className="home">
-      <header className="home-head">
+      <div className="home-hero">
         <Wordmark />
         <p className="tagline">{TAGLINE}</p>
-      </header>
-      <div className="game-cards">
-        {GAMES.map((g) => (
-          <button key={g.id} className={`game-card ${g.id}`} onClick={() => navigate(`/${g.id}`)}>
-            <span className="org">{g.org}</span>
-            <span className="name">{g.name}</span>
-            <span className="blurb">{g.blurb}</span>
-            <span className="go">Play →</span>
-          </button>
-        ))}
+        <GameSwitcher current={game} />
+        <p className="game-blurb">
+          <b>{GAMES.find((g) => g.id === game)!.org}</b> · {GAMES.find((g) => g.id === game)!.blurb}
+        </p>
       </div>
-      <ul className="features">
-        <li>Full 3D field with a driver-station camera, chase cam and a flat 2D overhead view</li>
-        <li>Robot builder with a live turntable preview, presets and legality checks</li>
-        <li>Matches against partner and opponent bots, skills and solo runs, free drive</li>
-        <li>Live scoring, automatic rule calls, replays and local records</li>
-        <li>Keyboard or gamepad (V5-style layout)</li>
-      </ul>
+      <nav className="menu" aria-label="Main menu">
+        <Link to={`/${game}/play`} className="menu-btn primary">
+          <b>Play</b>
+          <small>Practice &amp; matches</small>
+        </Link>
+        <Link to={`/${game}/configure/robot`} className="menu-btn">
+          <b>Configure</b>
+          <small>Robot &amp; match setup</small>
+        </Link>
+        <Link to={`/${game}/records`} className="menu-btn">
+          <b>Records</b>
+          <small>Best scores, career &amp; replays</small>
+        </Link>
+      </nav>
       <Footer />
     </div>
   );
@@ -45,6 +63,8 @@ function Home() {
 export function App() {
   const [route, setRoute] = useState<Route>(() => parse(location.pathname));
   const [settings, setSettingsState] = useState<Settings>(loadSettings);
+  const [launch, setLaunch] = useState<{ game: GameId; mode: ModeId; seed: number } | null>(null);
+  const [replay, setReplay] = useState<{ game: GameId; replay: Replay } | null>(null);
   const setSettings = useCallback((s: Settings) => {
     setSettingsState(s);
     saveSettings(s);
@@ -56,9 +76,58 @@ export function App() {
     return () => window.removeEventListener('popstate', on);
   }, []);
 
+  const game: GameId = route.game ?? loadJson<GameId>('lastGame', 'override');
   useEffect(() => {
-    document.title = route.page === 'home' ? 'ZDrive: VEX Driving Simulator' : `ZDrive · ${route.game === 'override' ? 'Override' : 'Pinnacle'}`;
-  }, [route]);
+    if (route.game) saveJson('lastGame', route.game);
+    document.title = route.game ? `ZDrive · ${GAMES.find((g) => g.id === route.game)!.name}` : 'ZDrive: VEX Driving Simulator';
+  }, [route.game]);
 
-  return route.page === 'home' ? <Home /> : <GameHome key={route.game} game={route.game} settings={settings} setSettings={setSettings} />;
+  useEffect(() => {
+    applyTheme(settings.theme);
+    setAudioLevels({ master: settings.master, sfx: settings.sfx, voice: settings.voice });
+  }, [settings.theme, settings.master, settings.sfx, settings.voice]);
+
+  const def = useGame(game);
+
+  if (launch && def && def.id === launch.game) {
+    const mode = def.modes.find((m) => m.id === launch.mode)!;
+    return (
+      <Suspense fallback={<div className="loading">Loading field…</div>}>
+        <GameView
+          key={launch.seed}
+          game={def}
+          mode={mode}
+          entries={lineup(def, mode, loadDraft(def.id), settings)}
+          settings={settings}
+          seed={launch.seed}
+          onExit={() => setLaunch(null)}
+          onRestart={() => setLaunch({ ...launch, seed: (Date.now() & 0x7fffffff) || 1 })}
+          onWatch={(r) => {
+            setLaunch(null);
+            setReplay({ game: def.id, replay: r });
+          }}
+        />
+      </Suspense>
+    );
+  }
+  if (replay && def && def.id === replay.game) {
+    return (
+      <Suspense fallback={<div className="loading">Loading replay…</div>}>
+        <ReplayViewer game={def} replay={replay.replay} settings={settings} onExit={() => setReplay(null)} />
+      </Suspense>
+    );
+  }
+
+  if (route.page === 'home' || !route.game) return <Home game={game} />;
+  if (!def) return <div className="loading">Loading…</div>;
+
+  return (
+    <Shell game={game} page={route.page}>
+      {route.page === 'play' && <PlayPage def={def} settings={settings} onLaunch={(mode) => setLaunch({ game, mode, seed: (Date.now() & 0x7fffffff) || 1 })} />}
+      {route.page === 'configure' && (
+        <ConfigurePage def={def} section={route.section} settings={settings} setSettings={setSettings} onSection={(s) => navigate(`/${game}/configure/${s}`)} />
+      )}
+      {route.page === 'records' && <RecordsPage game={def} onWatch={(r) => setReplay({ game, replay: r })} />}
+    </Shell>
+  );
 }

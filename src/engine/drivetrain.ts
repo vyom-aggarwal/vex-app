@@ -240,6 +240,12 @@ export interface DerivedStats {
   turnDps: number;
   pushLbf: number;
   strafeFps: number;
+  /** Launch acceleration from rest (in/s²) and turn acceleration from rest (rad/s²). */
+  accelIps2: number;
+  turnAccel: number;
+  /** Top turn rate in rad/s. */
+  turnRads: number;
+  wheelRpm: number;
 }
 
 function settle(m: DriveModel, fwd: number, strafe: number, turn: number): Planar {
@@ -261,7 +267,14 @@ export function derivedStats(spec: RobotSpec): DerivedStats {
     const muLong = wh.omni ? MU.omniLong : MU.tractionLong;
     push += Math.min(m.stallForce[i], muLong * m.normal) * Math.abs(Math.cos(wh.dir));
   });
+  const rest: Planar = { x: 0, y: 0, th: 0, vx: 0, vy: 0, w: 0 };
+  const f0 = wheelForces(m, rest, groupVoltages(m, 1, 0, 0), 1 / 120);
+  const t0 = wheelForces(m, rest, groupVoltages(m, 0, 0, 1), 1 / 120);
   return {
+    accelIps2: Math.hypot(f0.fx, f0.fy) / m.mass / 0.0254,
+    turnAccel: Math.abs(t0.mz) / m.inertia,
+    turnRads: Math.abs(t.w),
+    wheelRpm: spec.drive.cartridge * spec.drive.ratio,
     massKg: m.mass,
     topSpeedFps: mpsToFps(Math.hypot(f.vx, f.vy)),
     turnDps: (Math.abs(t.w) * 180) / Math.PI,

@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import type { GameDefinition } from '../engine/types';
-import { loadRecords, loadReplays, replaysKey } from '../shared/records';
-import { replayFileName, type Replay } from '../shared/replay';
-import { saveJson } from '../shared/storage';
-import { downloadJson } from './download';
+import type { GameDefinition } from '../../engine/types';
+import { loadRecords, loadReplays, replaysKey } from '../../shared/records';
+import { replayFileName, type Replay } from '../../shared/replay';
+import { saveJson } from '../../shared/storage';
+import { downloadJson } from '../download';
 
-export function Records({ game, onWatch }: { game: GameDefinition; onWatch: (r: Replay) => void }) {
+export function RecordsPage({ game, onWatch }: { game: GameDefinition; onWatch: (r: Replay) => void }) {
   const rec = loadRecords(game.id);
   const [replays, setReplays] = useState<Replay[]>(() => loadReplays(game.id));
   const [msg, setMsg] = useState('');

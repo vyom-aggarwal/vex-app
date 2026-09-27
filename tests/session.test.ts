@@ -108,7 +108,7 @@ test('Replay with bots: re-created bots reproduce the run, including after seeki
     { spec: presetsFor('override')[1], alliance: 'blue', driver: { style: 'mixed', level: 'hard' }, slot: 0 },
   ];
   const opts = { game: OVERRIDE, modeId: 'match1v1' as const, robots, seed: 21 };
-  const bots = () => robots.map((r) => (r.driver === 'player' ? null : makeBot(r.driver.style, r.driver.level)));
+  const bots = () => robots.map((r) => (typeof r.driver === 'string' ? null : makeBot(r.driver.style, r.driver.level)));
   const s = await Session.create(opts, bots());
   s.start();
   for (let t = 0; t < 3000; t++) s.tick(cmd({ fwd: t % 600 < 300 ? 0.8 : -0.8, turn: 0.2 }));
