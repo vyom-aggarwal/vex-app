@@ -127,6 +127,7 @@
   --dur-slow: 320ms;
   --tooltip-delay: 400ms;
   --dur-toast: 4000ms;
+  --dur-saved: 1600ms;
   --dur-spin: 800ms;
   --dur-loop: 1400ms;
   --spinner-delay: 300ms;

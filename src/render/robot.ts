@@ -7,7 +7,7 @@ import { COLORS, mat } from './materials';
 
 const plateCache = new Map<string, THREE.CanvasTexture>();
 
-/** VEX-style license plate: team number in white on the alliance/accent color. */
+/** License plate: team number (or robot name) in white on the alliance/accent color. */
 function plateTexture(num: string, color: number): THREE.CanvasTexture | null {
   if (typeof document === 'undefined') return null;
   const key = `${num}:${color}`;
@@ -21,10 +21,10 @@ function plateTexture(num: string, color: number): THREE.CanvasTexture | null {
   g.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
   g.fillRect(0, 0, 256, 56);
   g.fillStyle = '#ffffff';
-  g.font = 'bold 40px system-ui, sans-serif';
+  g.font = `600 ${num.length > 8 ? 30 : 38}px 'Inter Variable', system-ui, sans-serif`;
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.fillText(num.slice(0, 8) || 'ZDRIVE', 128, 30);
+  g.fillText(num.slice(0, 14) || 'ZDRIVE', 128, 30);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   plateCache.set(key, t);
@@ -38,6 +38,34 @@ export class RobotMesh {
   private arm: THREE.Mesh | null = null;
   private claw = new THREE.Group();
   private spec: RobotSpec;
+  /** Meshes per builder part (chassis, drive, intake, lift, effector, tool, pneumatics) for highlighting. */
+  private parts = new Map<string, THREE.Object3D[]>();
+
+  private add(part: string, o: THREE.Object3D, parent: THREE.Object3D = this.group): void {
+    parent.add(o);
+    const list = this.parts.get(part) ?? [];
+    list.push(o);
+    this.parts.set(part, list);
+  }
+
+  /** Bounding box of a part in this robot's local frame (null if the robot has no such part). */
+  partBox(part: string): THREE.Box3 | null {
+    const list = this.parts.get(part);
+    if (!list?.length) return null;
+    this.group.updateMatrixWorld(true);
+    const inv = this.group.matrixWorld.clone().invert();
+    const box = new THREE.Box3();
+    const tmp = new THREE.Box3();
+    for (const o of list)
+      o.traverse((c) => {
+        const mesh = c as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.geometry.computeBoundingBox();
+        tmp.copy(mesh.geometry.boundingBox!).applyMatrix4(mesh.matrixWorld).applyMatrix4(inv);
+        box.union(tmp);
+      });
+    return box.isEmpty() ? null : box.expandByScalar(inToM(0.4));
+  }
 
   constructor(spec: RobotSpec, alliance: Alliance | null) {
     this.spec = spec;
@@ -51,22 +79,22 @@ export class RobotMesh {
     const team = spec.look?.accent ?? (alliance ? COLORS[alliance] : 0x8a93a0);
     const frame = spec.look?.chassis ?? COLORS.metal;
     // Drive base: side rails, cross members, bumpers in alliance color.
-    this.group.add(m(c.length, 1, baseH, frame, 0, c.width / 2 - 0.5, CLEARANCE + baseH / 2));
-    this.group.add(m(c.length, 1, baseH, frame, 0, -c.width / 2 + 0.5, CLEARANCE + baseH / 2));
-    this.group.add(m(1, c.width - 2, 1, COLORS.darkMetal, c.length / 2 - 1.5, 0, CLEARANCE + 1));
-    this.group.add(m(1, c.width - 2, 1, COLORS.darkMetal, -c.length / 2 + 1.5, 0, CLEARANCE + 1));
-    this.group.add(m(c.length - 2, c.width - 2, 0.25, COLORS.darkMetal, 0, 0, CHASSIS_BASE - 0.3));
-    this.group.add(m(c.length + 0.4, 0.6, 2.2, team, 0, c.width / 2 + 0.3, 2.3));
-    this.group.add(m(c.length + 0.4, 0.6, 2.2, team, 0, -c.width / 2 - 0.3, 2.3));
+    this.add('chassis', m(c.length, 1, baseH, frame, 0, c.width / 2 - 0.5, CLEARANCE + baseH / 2));
+    this.add('chassis', m(c.length, 1, baseH, frame, 0, -c.width / 2 + 0.5, CLEARANCE + baseH / 2));
+    this.add('chassis', m(1, c.width - 2, 1, COLORS.darkMetal, c.length / 2 - 1.5, 0, CLEARANCE + 1));
+    this.add('chassis', m(1, c.width - 2, 1, COLORS.darkMetal, -c.length / 2 + 1.5, 0, CLEARANCE + 1));
+    this.add('chassis', m(c.length - 2, c.width - 2, 0.25, COLORS.darkMetal, 0, 0, CHASSIS_BASE - 0.3));
+    this.add('chassis', m(c.length + 0.4, 0.6, 2.2, team, 0, c.width / 2 + 0.3, 2.3));
+    this.add('chassis', m(c.length + 0.4, 0.6, 2.2, team, 0, -c.width / 2 - 0.3, 2.3));
     // Team number license plates on both sides.
-    const plate = plateTexture(spec.team?.number || '', team);
+    const plate = plateTexture((spec.team?.number || spec.name || '').trim(), team);
     if (plate) {
       for (const s of [1, -1]) {
         const p = new THREE.Mesh(new THREE.PlaneGeometry(inToM(Math.min(9, c.length - 2)), inToM(2)), new THREE.MeshStandardMaterial({ map: plate, roughness: 0.6 }));
         p.position.set(0, inToM(s * (c.width / 2 + 0.62)), inToM(2.3));
         // Front face outward (±y) with the text upright: +y side needs an extra half-turn about Y.
         p.rotation.set(Math.PI / 2, s > 0 ? Math.PI : 0, 0);
-        this.group.add(p);
+        this.add('chassis', p);
       }
     }
     // Wheels
@@ -79,24 +107,24 @@ export class RobotMesh {
       mesh.rotation.z = w.dir;
       const inset = Math.abs(w.y) > 0.01 ? Math.sign(w.y) * -0.6 : 0;
       mesh.position.set(w.x, w.y + inToM(inset), inToM(r));
-      this.group.add(mesh);
+      this.add('drive', mesh);
     }
     // Tower
     const towerH = c.height - CHASSIS_BASE;
     if (towerH > 1) {
-      this.group.add(m(1, 1, towerH, COLORS.metal, -c.length * 0.25, c.width * 0.33, CHASSIS_BASE + towerH / 2));
-      this.group.add(m(1, 1, towerH, COLORS.metal, -c.length * 0.25, -c.width * 0.33, CHASSIS_BASE + towerH / 2));
-      this.group.add(m(1.2, c.width * 0.7, 1, COLORS.darkMetal, -c.length * 0.25, 0, c.height - 0.5));
+      this.add('chassis', m(1, 1, towerH, COLORS.metal, -c.length * 0.25, c.width * 0.33, CHASSIS_BASE + towerH / 2));
+      this.add('chassis', m(1, 1, towerH, COLORS.metal, -c.length * 0.25, -c.width * 0.33, CHASSIS_BASE + towerH / 2));
+      this.add('chassis', m(1.2, c.width * 0.7, 1, COLORS.darkMetal, -c.length * 0.25, 0, c.height - 0.5));
       // Brain + battery
-      this.group.add(m(4, 3, 1.2, COLORS.black, -c.length * 0.1, 0, CHASSIS_BASE + 0.6));
-      this.group.add(m(3, 2.6, 1.2, team, -c.length * 0.35, 0, CHASSIS_BASE + 0.6));
+      this.add('chassis', m(4, 3, 1.2, COLORS.black, -c.length * 0.1, 0, CHASSIS_BASE + 0.6));
+      this.add('chassis', m(3, 2.6, 1.2, team, -c.length * 0.35, 0, CHASSIS_BASE + 0.6));
     }
     // Lift
     const lt = spec.lift.type;
     const { zMax } = liftRange(spec);
     if (lt === 'dr4b' || lt === 'cascade' || lt === 'sixbar') {
       const x = c.length / 2 - 1;
-      for (const s of [1, -1]) this.group.add(m(1, 1, Math.max(4, zMax * 0.55), COLORS.metal, x - 1.5, (s * c.width) / 2.6, CHASSIS_BASE + zMax * 0.27));
+      for (const s of [1, -1]) this.add('lift', m(1, 1, Math.max(4, zMax * 0.55), COLORS.metal, x - 1.5, (s * c.width) / 2.6, CHASSIS_BASE + zMax * 0.27));
     }
     const piv = armPivot(spec);
     if (piv) {
@@ -104,8 +132,8 @@ export class RobotMesh {
       arm.geometry.translate(inToM(piv.r / 2), 0, 0);
       arm.position.set(inToM(piv.x), 0, inToM(piv.z));
       this.arm = arm;
-      this.group.add(arm);
-      this.group.add(m(1.2, c.width * 0.6, 1.2, COLORS.darkMetal, piv.x, 0, piv.z));
+      this.add('lift', arm);
+      this.add('lift', m(1.2, c.width * 0.6, 1.2, COLORS.darkMetal, piv.x, 0, piv.z));
     }
     // Carriage + claw at the effector point.
     const slots = spec.effector.type === 'claw' ? [0] : [1.8, -1.8];
@@ -115,14 +143,14 @@ export class RobotMesh {
       this.claw.add(m(2.6, 0.4, 1.4, COLORS.metal, -1.0, y - 1.6, 0));
     }
     this.carriage.add(this.claw);
-    this.group.add(this.carriage);
+    this.add('effector', this.carriage);
     // Intake rollers
     if (spec.intake.type !== 'none') {
       const roller = new THREE.CylinderGeometry(inToM(0.9), inToM(0.9), inToM(Math.min(c.width - 2, 12)), 12);
       const addRoller = (x: number) => {
-        const mesh = new THREE.Mesh(roller, mat(spec.intake.type === 'flex' ? 0x2aa36b : COLORS.darkMetal, { rough: 0.8 }));
+        const mesh = new THREE.Mesh(roller, mat(spec.intake.type === 'flex' ? COLORS.rubber : COLORS.darkMetal, { rough: 0.8 }));
         mesh.position.set(inToM(x), 0, inToM(2));
-        this.group.add(mesh);
+        this.add('intake', mesh);
       };
       if (spec.intake.mount !== 'back') addRoller(c.length / 2 + 0.8);
       if (spec.intake.mount !== 'front') addRoller(-c.length / 2 - 0.8);
@@ -131,15 +159,15 @@ export class RobotMesh {
     const tool = spec.tool.type;
     if (tool !== 'none') {
       const len = tool === 'flipper' ? 5 : tool === 'wedge' ? 3.5 : 2.5;
-      const t = m(len, tool === 'spinner' ? 1.5 : 3, 0.8, tool === 'spinner' ? 0x2aa36b : COLORS.metal, c.length / 2 + len / 2 - 1, 0, Math.max(10, c.height - 1));
-      this.group.add(t);
+      const t = m(len, tool === 'spinner' ? 1.5 : 3, 0.8, tool === 'spinner' ? COLORS.rubber : COLORS.metal, c.length / 2 + len / 2 - 1, 0, Math.max(10, c.height - 1));
+      this.add('tool', t);
     }
     // Pneumatic tanks
     for (let i = 0; i < spec.pneumatics.tanks; i++) {
       const tank = new THREE.Mesh(new THREE.CylinderGeometry(inToM(0.8), inToM(0.8), inToM(5), 10), mat(0x2b2f36, { metal: 0.6 }));
       tank.rotation.z = Math.PI / 2;
       tank.position.set(inToM(-c.length / 2 + 3), inToM((i ? -1 : 1) * 3), inToM(CHASSIS_BASE + 1));
-      this.group.add(tank);
+      this.add('pneumatics', tank);
     }
     this.update(0, 0);
   }

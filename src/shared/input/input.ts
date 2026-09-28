@@ -15,6 +15,9 @@ const isFormField = (t: EventTarget | null): boolean =>
   t instanceof HTMLElement &&
   (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
 
+const isControl = (t: EventTarget | null): boolean =>
+  typeof HTMLElement !== 'undefined' && t instanceof HTMLElement && (t.tagName === 'BUTTON' || t.tagName === 'A' || t.getAttribute('role') === 'button');
+
 export interface PadOptions {
   /** Analog trigger press threshold (0..1). */
   triggerThreshold: number;
@@ -43,7 +46,10 @@ export class InputManager {
   private actions: UiAction[] = [];
   private prevPad = new Map<number, boolean>();
   private readonly onDown = (e: KeyboardEvent): void => {
+    // Menus handled it (e.g. Esc closed a dialog), or it activates a focused button.
+    if (e.defaultPrevented) return;
     if (isFormField(e.target) && e.code !== 'Escape') return;
+    if (isControl(e.target) && (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Space')) return;
     this.down.add(e.code);
     if (!e.repeat) for (const a of this.keyActions(e.code)) this.actions.push(a);
     if (this.gameActive && !e.ctrlKey && !e.metaKey && !e.altKey) e.preventDefault();

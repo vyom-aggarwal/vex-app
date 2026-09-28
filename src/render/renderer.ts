@@ -56,9 +56,9 @@ export class ZRenderer {
   private root = new THREE.Group();
   private persp = new THREE.PerspectiveCamera(50, 1, 0.05, 80);
   private ortho = new THREE.OrthographicCamera(-2, 2, 2, -2, 0.1, 30);
-  private hemi = new THREE.HemisphereLight(0xdbe4f2, 0x3a3f48, 1.25);
-  private sun = new THREE.DirectionalLight(0xfff6ea, 2.1);
-  private fill = new THREE.DirectionalLight(0xbfd4ff, 0.55);
+  private hemi = new THREE.HemisphereLight(0xffffff, 0x404040, 1.25);
+  private sun = new THREE.DirectionalLight(0xffffff, 2.1);
+  private fill = new THREE.DirectionalLight(0xffffff, 0.55);
   private orbit: OrbitControls | null = null;
   private fieldGroup: THREE.Group | null = null;
   private detents: THREE.Group[] = [];
@@ -76,6 +76,9 @@ export class ZRenderer {
   private camInit = false;
   private lastDraw = 0;
   private guides = new THREE.Group();
+  private ambientAngle = 0.6;
+  private highlight: THREE.Box3Helper | null = null;
+  private highlightColor = 0xa6e35a;
   private goalRing: THREE.Mesh;
   private grabRing: THREE.Mesh;
   private dropLine: THREE.Mesh;
@@ -417,6 +420,7 @@ export class ZRenderer {
   // -------------------------------------------------------------------------------------------
 
   private clearPreview(): void {
+    this.highlightPart(null);
     if (this.previewGroup) this.root.remove(this.previewGroup);
     this.previewRobot?.dispose();
     this.previewGroup = null;
@@ -514,6 +518,82 @@ export class ZRenderer {
     for (const d of this.detents) d.visible = true;
     this.applyFlat();
     this.resize();
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // Palette (UI tokens), ambient menu backdrop, builder part highlight, 2D label projection
+  // -------------------------------------------------------------------------------------------
+
+  /** Take alliance / yellow / background / accent colors from the UI tokens. Applies to meshes built afterwards. */
+  setPalette(p: { red: number; blue: number; yellow: number; bg: number; accent: number }): void {
+    COLORS.red = p.red;
+    COLORS.blue = p.blue;
+    COLORS.yellow = p.yellow;
+    COLORS.bg = p.bg;
+    this.highlightColor = p.accent;
+    this.scene.background = new THREE.Color(p.bg);
+    if (this.scene.fog) this.scene.fog = new THREE.Fog(p.bg, 9, 26);
+  }
+
+  /** Prepare the slowly orbiting field view used behind the menus. */
+  beginAmbient(): void {
+    this.mode = 'audience';
+    if (this.orbit) this.orbit.enabled = false;
+    if (this.flat) {
+      this.flat = false;
+      this.applyFlat();
+    }
+    this.camInit = false;
+  }
+
+  /** Render one ambient frame; `dt` = 0 renders a still frame (reduced motion). */
+  renderAmbient(dt: number): void {
+    const t0 = performance.now();
+    this.ambientAngle += dt * 0.045;
+    const S = this.fieldSize;
+    const a = this.ambientAngle;
+    if (this.persp.fov !== 42) {
+      this.persp.fov = 42;
+      this.persp.updateProjectionMatrix();
+    }
+    this.persp.up.set(0, 1, 0);
+    this.persp.position.copy(e2t(Math.cos(a) * S * 1.02, Math.sin(a) * S * 1.02, S * 0.62));
+    this.persp.lookAt(e2t(0, 0, -0.15));
+    this.renderer.render(this.scene, this.persp);
+    this.lastDraw = performance.now() - t0;
+  }
+
+  /** Outline one part of the builder preview robot (null clears). */
+  highlightPart(part: string | null): void {
+    if (this.highlight) {
+      this.highlight.parent?.remove(this.highlight);
+      this.highlight.geometry.dispose();
+      (this.highlight.material as THREE.Material).dispose();
+      this.highlight = null;
+    }
+    const robot = this.previewRobot;
+    if (!part || !robot) return;
+    const box = robot.partBox(part);
+    if (!box) return;
+    const h = new THREE.Box3Helper(box, new THREE.Color(this.highlightColor));
+    const m = h.material as THREE.LineBasicMaterial;
+    m.depthTest = false;
+    m.transparent = true;
+    h.renderOrder = 20;
+    robot.group.add(h);
+    this.highlight = h;
+  }
+
+  /** Canvas-pixel position of a field point (inches, engine frame) under the current camera. */
+  project(xIn: number, yIn: number, zIn = 0): { x: number; y: number } | null {
+    const cam = this.mode === 'overhead' ? this.ortho : this.persp;
+    const v = new THREE.Vector3(inToM(xIn), inToM(yIn), inToM(zIn));
+    this.root.localToWorld(v);
+    v.project(cam);
+    if (v.z > 1) return null;
+    const w = this.canvas.clientWidth;
+    const h = this.canvas.clientHeight;
+    return { x: ((v.x + 1) / 2) * w, y: ((1 - v.y) / 2) * h };
   }
 
   dispose(): void {

@@ -8,13 +8,14 @@ import { replayFileName, type Replay } from '../shared/replay';
 import { TICK_HZ } from '../shared/timestep';
 import { CAMERA_LABELS, CAMERA_MODES, type CameraMode, type ZRenderer } from '../render/renderer';
 import { Wordmark, phaseLabel } from './chrome';
+import { worldInfoOf } from './world';
 import { downloadJson } from './download';
 import { attachCanvas, getRenderer } from './host';
 import { resolveQuality } from './quality';
 import type { Settings } from './settings';
 
 /** Replay viewer: re-simulates the run with scrubbing (snapshots every 10 s), speed and camera switching. */
-export default function ReplayViewer({ game, replay, settings, onExit }: { game: GameDefinition; replay: Replay; settings: Settings; onExit: () => void }) {
+export default function ReplayViewer({ game, replay, at, settings, onExit }: { game: GameDefinition; replay: Replay; at?: number; settings: Settings; onExit: () => void }) {
   const host = useRef<HTMLDivElement>(null);
   const playerRef = useRef<ReplayPlayer | null>(null);
   const rendererRef = useRef<ZRenderer | null>(null);
@@ -24,7 +25,7 @@ export default function ReplayViewer({ game, replay, settings, onExit }: { game:
   const [focus, setFocus] = useState(0);
   const [cam, setCam] = useState<CameraMode>(settings.view === '2d' ? 'overhead' : settings.camera);
   const [info, setInfo] = useState({ clock: '0:00', phase: 'pre' as ReturnType<typeof phaseLabel> | string, red: 0, blue: 0 });
-  const ctl = useRef({ playing: true, speed: 1, focus: 0, seekTo: -1 });
+  const ctl = useRef({ playing: true, speed: 1, focus: 0, seekTo: at ?? -1 });
   ctl.current.playing = playing;
   ctl.current.speed = speed;
   ctl.current.focus = focus;
@@ -44,10 +45,7 @@ export default function ReplayViewer({ game, replay, settings, onExit }: { game:
       playerRef.current = p;
       r.alliance = replay.entries[0]?.alliance ?? 'red';
       r.loadGame(game);
-      const world = () => ({
-        objects: p.sim.state.objects.map((o) => ({ kind: o.kind, pin: o.pin, hidden: o.loc === 'supply' || (o.loc === 'loader' && !p.sim.state.loaders.some((l) => l.presented === o.id) && o.base < 0) })),
-        robots: p.sim.state.robots.map((x) => ({ spec: p.sim.specs[x.index], alliance: x.alliance })),
-      });
+      const world = () => worldInfoOf(p.sim);
       r.setWorld(world());
       r.setCamera(cam);
       let prev = p.sim.poses();
@@ -116,7 +114,7 @@ export default function ReplayViewer({ game, replay, settings, onExit }: { game:
     <div className="game-view replay">
       <div className="canvas-host" ref={host} />
       <div className="hud-top">
-        <Wordmark small />
+        <Wordmark />
         <div className="scoreboard">
           <span className="s red">{info.red}</span>
           <span className="clock">

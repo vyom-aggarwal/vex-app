@@ -20,10 +20,13 @@ export interface GameViewProps {
   mode: ModeDef;
   entries: RobotEntry[];
   settings: Settings;
+  setSettings: (s: Settings) => void;
   seed: number;
-  onExit: () => void;
+  /** Leave the match; `to` navigates somewhere else afterwards (Home, the builder). */
+  onExit: (to?: string) => void;
   onRestart: () => void;
-  onWatch: (r: Replay) => void;
+  /** Watch the replay, optionally starting at a tick. */
+  onWatch: (r: Replay, at?: number) => void;
 }
 
 export default function GameView({ game, mode, entries, settings, seed, onExit, onRestart, onWatch }: GameViewProps) {
@@ -274,7 +277,7 @@ export default function GameView({ game, mode, entries, settings, seed, onExit, 
                     </button>
                   ))}
                 </div>
-                <button onClick={onExit}>Quit to menu</button>
+                <button onClick={() => onExit()}>Quit to menu</button>
               </div>
             </div>
           )}
@@ -287,11 +290,11 @@ export default function GameView({ game, mode, entries, settings, seed, onExit, 
             <h2>Couldn't start the field</h2>
             <p>{error}</p>
             <p className="hint">If this keeps happening, try Graphics → Low or another browser with WebGL enabled.</p>
-            <button onClick={onExit}>Back</button>
+            <button onClick={() => onExit()}>Back</button>
           </div>
         </div>
       )}
-      {done && <Results info={done} game={game} mode={mode} onAgain={onRestart} onExit={onExit} onWatch={() => onWatch(done.replay)} />}
+      {done && <Results info={done} game={game} mode={mode} onAgain={onRestart} onExit={() => onExit()} onWatch={() => onWatch(done.replay)} />}
     </div>
   );
 }
@@ -369,7 +372,7 @@ function Results({ info, game, mode, onAgain, onExit, onWatch }: { info: FinishI
           </button>
           <button onClick={onWatch}>Watch replay</button>
           <button onClick={() => downloadJson(replayFileName(info.replay), info.replay)}>Export replay</button>
-          <button onClick={onExit}>Back to menu</button>
+          <button onClick={() => onExit()}>Back to menu</button>
         </div>
       </div>
     </div>

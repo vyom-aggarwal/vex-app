@@ -48,7 +48,7 @@ export const usePadFamily = (): PadFamily => useSyncExternalStore(subscribe, () 
 type BackFn = () => boolean | void;
 const backStack: { current: BackFn }[] = [];
 const tabStack: { current: (dir: 1 | -1) => void }[] = [];
-const startStack: { current: () => void }[] = [];
+const shortcuts: { current: { code?: string; pad?: number; fn: () => void } }[] = [];
 
 function useStacked<T>(stack: { current: T }[], fn: T, active: boolean): void {
   const ref = useRef(fn);
@@ -68,8 +68,24 @@ function useStacked<T>(stack: { current: T }[], fn: T, active: boolean): void {
 export const useBack = (fn: BackFn, active = true): void => useStacked(backStack, fn, active);
 /** Register an LB/RB ( [ / ] ) tab switcher. */
 export const useTabSwitch = (fn: (dir: 1 | -1) => void, active = true): void => useStacked(tabStack, fn, active);
-/** Register a gamepad Start handler (menus only; in a live match the runner owns Start). */
-export const useStart = (fn: () => void, active = true): void => useStacked(startStack, fn, active);
+/**
+ * Register a screen shortcut: a key (KeyboardEvent.code, no modifiers, not while typing) and/or a
+ * gamepad button (X = 2, Y = 3, Start = 9; A, B and the bumpers are reserved for navigation).
+ * Only fires while a menu scope is active; the most recently registered wins per key.
+ */
+export const useShortcut = (keys: { code?: string; pad?: number }, fn: () => void, active = true): void =>
+  useStacked(shortcuts, { ...keys, fn }, active);
+
+function runShortcut(match: (s: { code?: string; pad?: number }) => boolean): boolean {
+  for (let i = shortcuts.length - 1; i >= 0; i--) {
+    const s = shortcuts[i].current;
+    if (match(s)) {
+      s.fn();
+      return true;
+    }
+  }
+  return false;
+}
 
 export function goBack(): boolean {
   for (let i = backStack.length - 1; i >= 0; i--) if (backStack[i].current() !== false) return true;
@@ -222,6 +238,8 @@ export function startNav(): void {
         if (goBack()) e.preventDefault();
       } else if ((e.key === '[' || e.key === ']') && !isField(e.target) && activeScope()) {
         switchTab(e.key === ']' ? 1 : -1);
+      } else if (!isField(e.target) && !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat && activeScope()) {
+        if (runShortcut((s) => s.code === e.code)) e.preventDefault();
       }
     },
     false,
@@ -254,7 +272,7 @@ export function startNav(): void {
         if (edge(1)) goBack();
         if (edge(4)) switchTab(-1);
         if (edge(5)) switchTab(1);
-        if (edge(9)) startStack[startStack.length - 1]?.current();
+        for (const b of [2, 3, 9]) if (edge(b)) runShortcut((s) => s.pad === b);
         const dir: Dir | null =
           pressed(12) || ly < -0.5 ? 'up' : pressed(13) || ly > 0.5 ? 'down' : pressed(14) || lx < -0.5 ? 'left' : pressed(15) || lx > 0.5 ? 'right' : null;
         if (!dir) held = null;

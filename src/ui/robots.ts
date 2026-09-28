@@ -1,6 +1,6 @@
 import { presetsFor } from '../games/presets';
 import { loadJson, saveJson } from '../shared/storage';
-import type { GameId, RobotSpec } from '../shared/types';
+import type { EffectorType, GameId, LiftType, RobotSpec } from '../shared/types';
 
 /**
  * Robot storage per game:
@@ -86,3 +86,10 @@ export function saveThumb(g: GameId, id: string, url: string): void {
     saveJson(`thumbs:${g}`, t);
   }
 }
+
+export const driveName = (s: RobotSpec): string =>
+  s.drive.type === 'tank' ? `Tank ${s.drive.wheelsPerSide * 2}-wheel` : s.drive.type === 'xdrive' ? 'X-drive' : s.drive.type === 'mecanum' ? 'Mecanum' : 'H-drive';
+export const LIFT_NAME: Record<LiftType, string> = { none: 'No lift', arm: 'Arm', fourbar: '4-bar', dr4b: 'DR4B', sixbar: '6-bar', chainbar: 'Chain bar', cascade: 'Cascade' };
+export const EFFECTOR_NAME: Record<EffectorType, string> = { claw: 'Claw', dual: 'Dual grip', stack: 'Stack gripper' };
+/** One-line build summary ("Tank 4-wheel · DR4B · Dual grip · intake"). */
+export const robotSummary = (s: RobotSpec): string => `${driveName(s)} · ${LIFT_NAME[s.lift.type]} · ${EFFECTOR_NAME[s.effector.type]}${s.intake.type !== 'none' ? ' · intake' : ''}`;

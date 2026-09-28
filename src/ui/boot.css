@@ -1,0 +1,58 @@
+/* Boot screen: loaded from index.html so it shows before any JavaScript runs. Tokens only. */
+.zd-boot {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-boot);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-0);
+  transition: opacity var(--dur-slow) var(--ease-exit);
+}
+.zd-boot.is-leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+.zd-boot-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  width: calc(var(--space-16) * 3);
+}
+.zd-boot-mark {
+  color: var(--text-1);
+  font-family: var(--font);
+  font-size: var(--fs-32);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-display);
+}
+.zd-wordmark-z {
+  color: var(--accent);
+}
+.zd-boot .zd-progress {
+  position: relative;
+  width: 100%;
+  height: var(--progress-h);
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--bg-3);
+}
+.zd-boot .zd-progress > span {
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform-origin: left center;
+}
+.zd-boot .zd-progress--indeterminate > span {
+  width: 40%;
+  animation: zd-boot-slide var(--dur-loop) var(--ease-enter) infinite;
+}
+@keyframes zd-boot-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
