@@ -38,6 +38,9 @@
   visual, Graphics) with original code and design. Rebindable controls; My Robot draft auto-saves.
 - Live score hides end-of-match position points (parking, Midfield robots) until the endgame; the final score counts them.
 
+- Robot mass sits entirely on the chassis collider so the COM is the wheel-model origin (off-center COM caused
+  crabbing/drift). V5 motors modeled current-limited (T0 = 2× rated, clipped at rated) for snappy launch/braking.
+
 ## Open TODOs
 - Pinnacle Solo Coding is a timer/mode shell only (no routine editor yet). Inspire hook: `INSPIRE_ROBOTS_PER_TEAM`.
 - Renderer/UI was verified by type-check + build only (no browser runs, per spec rules).
@@ -48,7 +51,7 @@
   Auto Line tape 2.5; cross-arm offset 4.75; toggle overhang 0.4 + face order; neutral footprints; loader capacity 6.
 - Pinnacle: all coordinates; interior 140.4; roller 25.6 long at 13.2, face order, starts yellow; goal/pin/cup/loader
   sizes (Override values); cup up-sides; start areas; "pinnacle" = 1 Cup + 1 Pin unit; no pause between periods.
-- Physics: piece masses 0.06/0.05 kg; pin insert 2.93; snap 0.9 in (tip/opening geometry; +3.5/−1.2 window); break speed 0.8 m/s; detent gains/caps.
+- Physics: piece masses 0.06/0.05 kg; pin insert 2.93; snap 1.25 in (tip cone + rim chamfer; +3.5/−1.2 window); 0.75 s placement grace; break speed 0.8 m/s; detent gains/caps.
 - Motors/mechanisms: V5 stall 2.1 N·m @100 rpm (5.5 W = half); wheel μ, rolling resistance; mass model; lift ~14 in/s
   per 11 W; wrist/claw timing; ~30 air strokes/tank; tool reach/timing.
 - Rules: load delay 1 s; SG13 lingering 3 s; SG7 1 in slack; holding-detection heuristic.

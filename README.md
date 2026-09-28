@@ -18,10 +18,12 @@ Build a robot, drive full matches against partner and opponent bots, run skills 
 - Cameras: **Driver Station**, **Driver Station (tracking)**, **Chase**, **Orbit** (drag and scroll), **Overhead 2D** (flat top-down) and **Audience**
 - A **robot builder** with a live 3D turntable preview, derived top speed, turn rate and push force, a legality panel, presets, saved robots, and export/import as `ZDRIVE1:` strings
 - **Field-centric or robot-centric** driving, plus toggleable assists:
-  - goal auto-align
+  - goal auto-align (hold)
+  - auto lift height (on by default: rises to drop height near a goal, lowers near a loose piece)
+  - auto-place when aligned (on by default; releases only when the robot is nearly stopped)
   - auto-grab
-  - auto-place when aligned
   - toggle/roller helper
+- **Placement guides:** the target goal's rim glows amber when you're near and green when releasing now would score; a drop line shows where a held piece is, and the piece your claw would grab is ringed
 - **Bots** as partners or opponents:
   - styles: Scorer, Toggle/Roller controller, Defender, Mixed
   - levels: Easy, Normal, Hard
