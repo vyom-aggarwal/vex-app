@@ -6,9 +6,11 @@ import { KeyRamp, mapDriverInput } from '../shared/input/mapping';
 import { formatClock, type Phase } from '../shared/matchTimer';
 import type { Replay } from '../shared/replay';
 import { FixedTimestep, TICK_HZ } from '../shared/timestep';
-import { NEUTRAL_COMMAND, PIN_HALVES, type Alliance, type HpCommand, type ModeId, type PinType, type RobotCommand, type RobotEntry } from '../shared/types';
+import { NEUTRAL_COMMAND, PIN_HALVES, type Alliance, type HalfColor, type HpCommand, type ModeId, type PinType, type RobotCommand, type RobotEntry } from '../shared/types';
+import type { RobotState } from '../engine/sim';
 import { CAMERA_LABELS, CAMERA_MODES, type CameraMode, type WorldInfo, type ZRenderer } from '../render/renderer';
 import { AutoQuality } from './quality';
+import { worldInfoOf } from './world';
 import type { Settings } from './settings';
 import { play, say } from './sound';
 
@@ -25,6 +27,16 @@ export interface PerfInfo {
   quality: string;
 }
 
+/** A held or stored piece as the HUD draws it (colors top to bottom; Cup: which half is up). */
+export type HeldPiece = { kind: 'pin'; top: HalfColor; bottom: HalfColor } | { kind: 'cup'; clearUp: boolean };
+
+export interface RobotChip {
+  name: string;
+  alliance: Alliance;
+  role: 'You' | 'Partner' | 'Opponent';
+  held: HeldPiece[];
+}
+
 export interface HudState {
   phase: Phase;
   clock: string;
@@ -38,6 +50,11 @@ export interface HudState {
   supply: { pins: number; cups: number };
   toasts: Toast[];
   holding: string;
+  /** Player robot: lift position 0–1 and what it holds. */
+  lift: number;
+  held: HeldPiece[];
+  robots: RobotChip[];
+  cameraMode: CameraMode;
   air: number | null;
   paused: boolean;
   pad: string | null;
@@ -116,11 +133,24 @@ export class GameRunner {
   }
 
   worldInfo(): WorldInfo {
+    return worldInfoOf(this.session.sim);
+  }
+
+  /** Pieces a robot holds (grips first, then intake storage) with their orientation. */
+  private heldOf(r: RobotState): HeldPiece[] {
     const sim = this.session.sim;
-    return {
-      objects: sim.state.objects.map((o) => ({ kind: o.kind, pin: o.pin, hidden: o.loc === 'supply' || (o.loc === 'loader' && !sim.state.loaders.some((l) => l.presented === o.id) && o.base < 0) })),
-      robots: sim.state.robots.map((r) => ({ spec: sim.specs[r.index], alliance: r.alliance })),
-    };
+    const flipped = r.wrist > 0.5;
+    const ids: { id: number; held: boolean }[] = [];
+    for (const id of r.slots) if (id >= 0) for (const u of sim.unitOf(id)) ids.push({ id: u, held: true });
+    for (const id of r.store) ids.push({ id, held: false });
+    return ids.map(({ id, held }) => {
+      const o = sim.obj(id);
+      // zDown: local +z (Pin half 0 / Cup clear half) points down; held pieces are relative to the wrist.
+      const down = held ? o.zDown !== flipped : o.zDown;
+      if (o.kind === 'cup') return { kind: 'cup', clearUp: !down };
+      const [h0, h1] = PIN_HALVES[o.pin!];
+      return { kind: 'pin', top: down ? h1 : h0, bottom: down ? h0 : h1 };
+    });
   }
 
   private get alliance(): Alliance {
@@ -290,8 +320,10 @@ export class GameRunner {
     this.last = now;
     this.frameDt = dt;
     this.input.poll();
-    for (const a of this.input.takeActions()) this.handle(a);
     const sim = this.session.sim;
+    // While paused the menu owns the input; only Start / menu (resume) reach the match.
+    for (const a of this.input.takeActions()) if (!this.paused || a === 'start' || a === 'menu') this.handle(a);
+    this.input.gameActive = !this.paused && sim.phase !== 'pre' && sim.phase !== 'post';
     if (!this.paused && sim.phase !== 'post') {
       const cmd = this.playerCommand();
       const t0 = performance.now();
@@ -371,6 +403,15 @@ export class GameRunner {
       supply: { pins: pool.filter((o) => o.kind === 'pin').length, cups: pool.filter((o) => o.kind === 'cup').length },
       toasts: this.settings.messages ? this.session.toasts.filter((x) => sim.state.tick - x.tick < 4 * TICK_HZ) : [],
       holding: names.length ? names.join(' + ') : `Empty · ${slots} grip${slots > 1 ? 's' : ''}${store ? ` + ${store} intake` : ''}`,
+      lift: me?.lift ?? 0,
+      held: me ? this.heldOf(me) : [],
+      robots: sim.state.robots.map((r, i) => ({
+        name: sim.specs[r.index].name || `Robot ${i + 1}`,
+        alliance: r.alliance,
+        role: i === 0 ? 'You' : r.alliance === me?.alliance ? 'Partner' : 'Opponent',
+        held: this.heldOf(r),
+      })),
+      cameraMode: this.renderer.mode,
       air: needsAir ? me.pneu : null,
       paused: this.paused,
       pad: this.input.padName,
@@ -392,10 +433,12 @@ export class GameRunner {
     const carded = sim.state.ref.redCards.includes(0);
     const player = carded ? 0 : result[a];
     this.onHud(this.hud());
+    const replay = this.session.replay({ red: result.red, blue: result.blue, player });
+    replay.calls = sim.state.ref.calls.map((c) => [c.tick, c.rule, c.alliance]);
     this.onFinish({
       result,
       calls: sim.state.ref.calls,
-      replay: this.session.replay({ red: result.red, blue: result.blue, player }),
+      replay,
       playerAlliance: a,
       redCards: sim.state.ref.redCards,
       stats: { placed: me.stats.placed, loads: me.stats.loads, seconds: sim.state.timer.matchTick / TICK_HZ },

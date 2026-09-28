@@ -17,7 +17,7 @@ export interface Career {
 }
 
 export interface Records {
-  best: Partial<Record<ModeId, { score: number; date: string }>>;
+  best: Partial<Record<ModeId, { score: number; date: string; robot?: string }>>;
   career: Career;
 }
 
@@ -42,6 +42,8 @@ export interface RunSummary {
   placed: number;
   loads: number;
   calls: number;
+  /** Robot name, kept with a new best. */
+  robot?: string;
 }
 
 /** Fold a finished run into the records. Returns true if it set a new best. */
@@ -59,7 +61,7 @@ export function commitRun(r: RunSummary): boolean {
   c.calls += r.calls;
   const prev = rec.best[r.mode];
   const isBest = r.mode !== 'free' && (!prev || r.score > prev.score);
-  if (isBest) rec.best[r.mode] = { score: r.score, date: new Date().toISOString() };
+  if (isBest) rec.best[r.mode] = { score: r.score, date: new Date().toISOString(), robot: r.robot };
   saveJson(recordsKey(r.game), rec);
   return isBest;
 }

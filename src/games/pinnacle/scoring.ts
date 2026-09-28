@@ -116,18 +116,24 @@ export function scorePinnacle(input: ScoreInput, modeId: ModeId): ScoreResult {
   const park = input.hideEndStates
     ? { red: 0, blue: 0 }
     : { red: parkedCount(input, 'red', LOADERS.red) * PTS.park, blue: parkedCount(input, 'blue', LOADERS.blue) * PTS.park };
-  lines.push({ label: 'Parked', ...park });
+  lines.push({ label: 'Parked', ...park, count: { red: park.red / PTS.park, blue: park.blue / PTS.park } });
   const red = goalPts.red + park.red;
   const blue = goalPts.blue + park.blue;
+  const endWhy = { red: endgameMissed(input, 'red'), blue: endgameMissed(input, 'blue') };
   const flags = [
-    { label: 'Autonomous RP', red: input.auton?.awp.red ?? false, blue: input.auton?.awp.blue ?? false },
-    { label: 'Endgame RP', red: endgameRP(input, 'red'), blue: endgameRP(input, 'blue') },
+    { label: 'Autonomous RP', red: input.auton?.awp.red ?? false, blue: input.auton?.awp.blue ?? false, why: input.auton?.awpWhy ?? { red: 'Autonomous has not ended.', blue: 'Autonomous has not ended.' } },
+    { label: 'Endgame RP', red: endWhy.red === null, blue: endWhy.blue === null, why: endWhy },
   ];
   return { red, blue, lines, flags };
 }
 
 /** Autonomous RP: ≥3 Cups and ≥4 halfpins scored (credited to the alliance) across ≥2 Goals, plus own zone roller in own color. */
 export function autonRP(input: ScoreInput, a: Alliance): boolean {
+  return autonRPMissed(input, a) === null;
+}
+
+/** Why an alliance missed the Autonomous RP, or null if it earned it. */
+export function autonRPMissed(input: ScoreInput, a: Alliance): string | null {
   let cups = 0;
   let halves = 0;
   let goals = 0;
@@ -155,15 +161,24 @@ export function autonRP(input: ScoreInput, a: Alliance): boolean {
     if (c + h > 0) goals++;
   }
   const own = rollerColor(input, a === 'red' ? 'RED' : 'BLUE') === a;
-  return cups >= 3 && halves >= 4 && goals >= 2 && own;
+  if (cups < 3) return `${cups} of 3 Cups scored.`;
+  if (halves < 4) return `${halves} of 4 halfpins scored.`;
+  if (goals < 2) return `Scored on ${goals} of 2 Goals.`;
+  if (!own) return 'Your zone Roller is not in your color.';
+  return null;
 }
 
 /** Endgame RP: a stack with ≥5 visible own-color halfpins, ≥1 roller in own color, ≥1 robot on an own Loader. */
 export function endgameRP(input: ScoreInput, a: Alliance): boolean {
-  const stack = tallies(input).some((g) => g[a] >= 5);
-  const roller = ['RED', 'BLUE', 'N1', 'N2'].some((z) => rollerColor(input, z) === a);
-  const loader = input.robots.some((r) => r.alliance === a && r.loaders.some((l) => LOADERS[a].includes(l)));
-  return stack && roller && loader;
+  return endgameMissed(input, a) === null;
+}
+
+/** Why an alliance missed the Endgame RP, or null if it earned it. */
+export function endgameMissed(input: ScoreInput, a: Alliance): string | null {
+  if (!tallies(input).some((g) => g[a] >= 5)) return 'No stack with 5 or more of your halfpins showing.';
+  if (!['RED', 'BLUE', 'N1', 'N2'].some((z) => rollerColor(input, z) === a)) return 'No Roller in your color.';
+  if (!input.robots.some((r) => r.alliance === a && r.loaders.some((l) => LOADERS[a].includes(l)))) return 'No robot parked on your Loader.';
+  return null;
 }
 
 /** Ranking points for one alliance given a final result: win 2 / tie 1 plus the two bonus RPs. */
@@ -181,5 +196,6 @@ export function pinnacleAuton(input: ScoreInput, calls: ViolationCall[]): AutonR
     violation: { red: calls.some((c) => c.auton && c.alliance === 'red'), blue: calls.some((c) => c.auton && c.alliance === 'blue') },
     bonus: { red: 0, blue: 0 },
     awp: { red: autonRP(input, 'red'), blue: autonRP(input, 'blue') },
+    awpWhy: { red: autonRPMissed(input, 'red'), blue: autonRPMissed(input, 'blue') },
   };
 }

@@ -6,7 +6,7 @@
 - [x] U2 components with every state on /design
 - [x] U3 shell, Home hub, Mode select, Settings
 - [x] U4 Robot builder
-- [ ] U5 HUD, pause, toasts, Results
+- [x] U5 HUD, pause, toasts, Results
 - [ ] U6 Records, replay viewer, states, sounds, reduced motion, gamepad audit
 
 ## Engine decisions (P1–P9)
@@ -38,6 +38,10 @@
 - Builder: presets load as a copy into My Robot (never edited); Save updates the saved robot it came from, Save as
   new makes another. Unsaved My Robot asks before a load. Hovering/focusing a group outlines that part (Box3 helper).
 - Legality messages (engine/legality.ts) now name the fix ("Drivetrain is 66 W; cap is 55 W. …").
+- HUD: while paused the runner ignores every action except start/menu; Esc/B resume via the menu Back stack.
+  Pause Settings/Controls open as dialogs so the match keeps its state. Clean HUD = score bar only.
+- ScoreLine.count and flag `why` (engine) feed the Results table and missed-achievement reasons; replays keep
+  rule-call ticks (`calls`) for timeline markers; best records keep the robot name.
 - Legacy screens still being migrated are wrapped in .zd-legacy (legacy.css, tokens only; deleted in U6).
 
 ## Open TODOs

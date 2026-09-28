@@ -73,16 +73,20 @@ export function scoreOverride(input: ScoreInput, modeId: ModeId): ScoreResult {
         if (h.color === 'yellow') yellow[h.to] += PTS.yellow;
         else colored[h.to] += PTS.colored;
       }
-  lines.push({ label: skills ? 'Red / blue halves' : 'Alliance-colored halves', ...colored });
-  lines.push({ label: 'Yellow halves', ...yellow });
+  const n = (v: { red: number; blue: number }, per: number) => ({ red: Math.round(v.red / per), blue: Math.round(v.blue / per) });
+  lines.push({ label: skills ? 'Red / blue halves' : 'Alliance-colored halves', ...colored, count: n(colored, PTS.colored) });
+  lines.push({ label: 'Yellow halves', ...yellow, count: n(yellow, PTS.yellow) });
   const mid = input.excludeMidfield || input.hideEndStates ? { red: 0, blue: 0 } : midfieldCounts(input);
   const midPts = skills ? { red: (mid.red + mid.blue) * PTS.midfield, blue: 0 } : { red: mid.red * PTS.midfield, blue: mid.blue * PTS.midfield };
-  lines.push({ label: 'Robots in the Midfield', ...midPts });
+  lines.push({ label: 'Robots in the Midfield', ...midPts, count: skills ? { red: mid.red + mid.blue, blue: 0 } : { red: mid.red, blue: mid.blue } });
   const bonus = !skills && input.auton ? input.auton.bonus : { red: 0, blue: 0 };
   if (!skills) lines.push({ label: 'Autonomous Bonus', ...bonus });
   const red = lines.reduce((a, l) => a + l.red, 0);
   const blue = lines.reduce((a, l) => a + l.blue, 0);
-  const flags = input.auton && !skills ? [{ label: input.worlds ? 'Autonomous Win Point (Worlds)' : 'Autonomous Win Point', red: input.auton.awp.red, blue: input.auton.awp.blue }] : [];
+  const flags =
+    input.auton && !skills
+      ? [{ label: input.worlds ? 'Autonomous Win Point (Worlds)' : 'Autonomous Win Point', red: input.auton.awp.red, blue: input.auton.awp.blue, why: input.auton.awpWhy }]
+      : [];
   return { red, blue, lines, flags };
 }
 
@@ -100,15 +104,21 @@ export function overrideAuton(input: ScoreInput, calls: ViolationCall[]): AutonR
   else if (noMid.red > noMid.blue) bonus = { red: PTS.bonus, blue: 0 };
   else if (noMid.blue > noMid.red) bonus = { red: 0, blue: PTS.bonus };
   else bonus = { red: PTS.bonus / 2, blue: PTS.bonus / 2 };
-  const awp = { red: awpFor(input, 'red', violation.red), blue: awpFor(input, 'blue', violation.blue) };
-  return { red: noMid.red, blue: noMid.blue, violation, bonus, awp };
+  const awpWhy = { red: awpMissed(input, 'red', violation.red), blue: awpMissed(input, 'blue', violation.blue) };
+  const awp = { red: awpWhy.red === null, blue: awpWhy.blue === null };
+  return { red: noMid.red, blue: noMid.blue, violation, bonus, awp, awpWhy };
 }
 
 /** SC8 Autonomous Win Point for one alliance. */
 export function awpFor(input: ScoreInput, a: Alliance, violated: boolean): boolean {
+  return awpMissed(input, a, violated) === null;
+}
+
+/** Why an alliance missed the SC8 Autonomous Win Point, or null if it earned it. */
+export function awpMissed(input: ScoreInput, a: Alliance, violated: boolean): string | null {
   const need = input.worlds ? { pins: 7, goals: 3 } : { pins: 6, goals: 2 };
-  if (violated) return false;
-  if (input.robots.some((r) => r.alliance === a && r.touchingPerimeter)) return false;
+  if (violated) return 'A rule violation during Autonomous.';
+  if (input.robots.some((r) => r.alliance === a && r.touchingPerimeter)) return 'A robot was touching the field perimeter.';
   const full = { ...input, excludeMidfield: false };
   let pins = 0;
   let goals = 0;
@@ -119,5 +129,7 @@ export function awpFor(input: ScoreInput, a: Alliance, violated: boolean): boole
     pins += mine;
     if (mine >= 2) goals++;
   }
-  return pins >= need.pins && goals >= need.goals;
+  if (pins < need.pins) return `${pins} of ${need.pins} Pins scored.`;
+  if (goals < need.goals) return `Pins on ${goals} of ${need.goals} Goals (2 or more each).`;
+  return null;
 }

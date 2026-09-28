@@ -219,12 +219,16 @@ export interface AutonResult {
   /** Snapshot facts used for win-point / ranking-point checks. */
   bonus: { red: number; blue: number };
   awp: { red: boolean; blue: boolean };
+  /** Why each alliance missed the win point / RP (null = earned). */
+  awpWhy?: { red: string | null; blue: string | null };
 }
 
 export interface ScoreLine {
   label: string;
   red: number;
   blue: number;
+  /** How many things scored the points (halves, robots…), when that's meaningful. */
+  count?: { red: number; blue: number };
 }
 
 export interface ScoreResult {
@@ -232,7 +236,7 @@ export interface ScoreResult {
   blue: number;
   lines: ScoreLine[];
   /** Extra results for the results screen (AWP / RP flags). */
-  flags: { label: string; red: boolean; blue: boolean }[];
+  flags: { label: string; red: boolean; blue: boolean; why?: { red: string | null; blue: string | null } }[];
 }
 
 // ---------------------------------------------------------------------------------------------

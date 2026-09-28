@@ -22,6 +22,8 @@ export interface Replay {
   startTick: number;
   date: string;
   result: { red: number; blue: number; player: number };
+  /** Rule calls as [tick, rule ID, alliance], for timeline markers (older replays don't have them). */
+  calls?: [number, string, 'red' | 'blue'][];
 }
 
 export type PackedCmd = [number, number, number, number | null, number | null, number, number, number, number];

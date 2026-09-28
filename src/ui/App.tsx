@@ -196,7 +196,9 @@ export function App() {
   } else if (replay && def && def.id === replay.game) {
     view = (
       <Suspense fallback={<ViewLoading label="Loading replay" />}>
-        <ReplayViewer game={def} replay={replay.replay} at={replay.at} settings={settings} onExit={() => setReplay(null)} />
+        <div className="zd-legacy">
+          <ReplayViewer game={def} replay={replay.replay} at={replay.at} settings={settings} onExit={() => setReplay(null)} />
+        </div>
       </Suspense>
     );
   }
@@ -254,7 +256,7 @@ export function App() {
           <Footer />
         </div>
       )}
-      {view && <div className="zd-legacy">{view}</div>}
+      {view}
       {bootLayer}
     </div>
   );
