@@ -127,6 +127,8 @@ export interface RobotState {
   toolTicks: number;
   ejectTicks: number;
   grabCooldown: number;
+  /** Kind of piece the driver last reached for (last grip button pressed); assists prefer it. */
+  wantKind: 'pin' | 'cup' | null;
   body: number;
   plate: number;
   stats: { placed: number; removed: number; loads: number };
@@ -495,6 +497,7 @@ export class Sim {
         toolTicks: 0,
         ejectTicks: 0,
         grabCooldown: 0,
+        wantKind: null,
         body: body.handle,
         plate: plate.handle,
         stats: { placed: 0, removed: 0, loads: 0 },
@@ -673,41 +676,61 @@ export class Sim {
   }
 
   /** Goal auto-align: steer so the effector point sits over the nearest useful target. */
+  /**
+   * What the driver assists should act on right now: the nearest goal a held piece can nest in, or the
+   * nearest loose piece that fits an empty grip slot, measured from the slot that would do the work.
+   */
+  assistTarget(r: RobotState, range = 30): { x: number; y: number; slot: number; goal: GoalDef | null; obj: number | null; kind: 'pin' | 'cup' } | null {
+    const spec = this.specs[r.index];
+    const e = effectorPoint(spec, r.lift);
+    const slots = effectorSlots(spec);
+    const forbidden = this.game.bots.forbiddenGoals(r.alliance);
+    let best: { x: number; y: number; slot: number; goal: GoalDef | null; obj: number | null; kind: 'pin' | 'cup' } | null = null;
+    let bestD = inToM(range);
+    slots.forEach((kind, k) => {
+      const sp = this.robotPoint(r.index, e.x, SLOT_Y[kind], e.z);
+      const held = r.slots[k];
+      if (held >= 0) {
+        const hk = this.obj(held).kind;
+        for (const g of this.game.field.goals) {
+          if (forbidden.includes(g.id)) continue;
+          if (stackTop(g.height, this.state.stacks.find((x) => x.goalId === g.id)!.levels).accepts !== hk) continue;
+          const d = Math.hypot(inToM(g.x) - sp.x, inToM(g.y) - sp.y);
+          if (d < bestD) {
+            bestD = d;
+            best = { x: inToM(g.x), y: inToM(g.y), slot: k, goal: g, obj: null, kind: hk };
+          }
+        }
+        return;
+      }
+      for (const o of this.state.objects) {
+        const loose = o.loc === 'field' || this.isPresented(o) || (o.loc === 'riding' && this.rootAvailable(o.id));
+        if (!loose || (kind !== 'any' && o.kind !== kind)) continue;
+        const t = this.objPos(o.id);
+        if (t.z > inToM(12)) continue;
+        // Prefer the kind the driver last reached for (e.g. just pressed the Cup grip).
+        const d = Math.hypot(t.x - sp.x, t.y - sp.y) + (r.wantKind && o.kind !== r.wantKind ? inToM(12) : 0);
+        if (d < bestD) {
+          bestD = d;
+          best = { x: t.x, y: t.y, slot: k, goal: null, obj: o.id, kind: o.kind };
+        }
+      }
+    });
+    return best;
+  }
+
   private applyAssists(r: RobotState, cmd: RobotCommand): RobotCommand {
     if (!(cmd.assists & ASSIST.align) || !cmd.align) return cmd;
     const spec = this.specs[r.index];
     const e = effectorPoint(spec, r.lift);
-    const holding = r.slots.some((x) => x >= 0);
-    let target: V2 | null = null;
-    let best = inToM(30);
-    const ep = this.robotPoint(r.index, e.x, 0, e.z);
-    if (holding) {
-      for (const g of this.game.field.goals) {
-        if (this.game.bots.forbiddenGoals(r.alliance).includes(g.id)) continue;
-        const d = Math.hypot(inToM(g.x) - ep.x, inToM(g.y) - ep.y);
-        if (d < best) {
-          best = d;
-          target = { x: inToM(g.x), y: inToM(g.y) };
-        }
-      }
-    } else {
-      for (const o of this.state.objects) {
-        if (o.loc !== 'field' && o.loc !== 'loader') continue;
-        const t = this.objPos(o.id);
-        const d = Math.hypot(t.x - ep.x, t.y - ep.y);
-        if (d < best) {
-          best = d;
-          target = { x: t.x, y: t.y };
-        }
-      }
-    }
-    if (!target) return cmd;
+    const tgt = this.assistTarget(r);
+    if (!tgt) return cmd;
+    const target: V2 = { x: tgt.x, y: tgt.y };
     const p = this.robotPose(r.index);
     const c = Math.cos(p.th);
     const s = Math.sin(p.th);
     // Aim the slot that holds (or will take) the piece, not the claw centerline.
-    const aimK = holding ? r.slots.findIndex((x) => x >= 0) : 0;
-    const sy = inToM(SLOT_Y[this.slotKind(r, aimK)]);
+    const sy = inToM(SLOT_Y[this.slotKind(r, tgt.slot)]);
     const sx = inToM(e.x);
     const dx = target.x - p.x;
     const dy = target.y - p.y;
@@ -754,13 +777,17 @@ export class Sim {
     const slots = effectorSlots(spec);
     const pneuClaw = spec.effector.actuation === 'pneumatic';
     const gripSlot = (want: 'pin' | 'cup'): number => (slots.length === 1 ? 0 : slots.indexOf(want));
+    const toggled = new Set<number>();
     for (const [bit, want] of [
       [BTN.gripPin, 'pin'],
       [BTN.gripCup, 'cup'],
     ] as const) {
       if (!pressed(bit)) continue;
+      r.wantKind = want;
       const k = gripSlot(want);
-      if (k < 0 || !this.canActuate(r, pneuClaw)) continue;
+      // One claw toggles once per tick even if both grip buttons land together.
+      if (k < 0 || toggled.has(k) || !this.canActuate(r, pneuClaw)) continue;
+      toggled.add(k);
       if (r.slots[k] >= 0) this.release(r, k);
       else this.grab(r, k, want);
     }
@@ -834,7 +861,8 @@ export class Sim {
     }
     const slots = effectorSlots(this.specs[i]);
     for (let s = 0; s < slots.length; s++) {
-      const c = this.captureCandidate(r, s, null);
+      if (r.slots[s] >= 0) continue;
+      const c = this.captureCandidate(r, s, r.wantKind);
       if (c !== null) return { goal: null, drop: null, grab: this.objPos(c) };
     }
     return { goal: null, drop: null, grab: null };
@@ -844,30 +872,16 @@ export class Sim {
   private autoLiftTarget(r: RobotState): number | null {
     const spec = this.specs[r.index];
     if (liftRate(spec) === 0) return null;
-    const e = effectorPoint(spec, r.lift);
-    const ep = this.robotPoint(r.index, e.x, 0, e.z);
-    const k = r.slots.findIndex((x) => x >= 0);
-    let targetZ: number | null = null;
-    if (k >= 0) {
-      const kind = this.obj(r.slots[k]).kind;
-      let best = inToM(16);
-      for (const g of this.game.field.goals) {
-        if (this.game.bots.forbiddenGoals(r.alliance).includes(g.id)) continue;
-        const d = Math.hypot(inToM(g.x) - ep.x, inToM(g.y) - ep.y);
-        const top = stackTop(g.height, this.state.stacks.find((s) => s.goalId === g.id)!.levels);
-        if (d < best && top.accepts === kind) {
-          best = d;
-          // Piece bottom 1" above the rim: center = top + 1 + half; the effector sits HOLD_LIFT below it.
-          targetZ = top.z + 1 + halfOf(kind) - HOLD_LIFT;
-        }
-      }
+    const tgt = this.assistTarget(r, 16);
+    if (!tgt) return null;
+    let targetZ: number;
+    if (tgt.goal) {
+      const top = stackTop(tgt.goal.height, this.state.stacks.find((s) => s.goalId === tgt.goal!.id)!.levels);
+      // Piece bottom 1" above the rim: center = top + 1 + half; the effector sits HOLD_LIFT below it.
+      targetZ = top.z + 1 + halfOf(tgt.kind) - HOLD_LIFT;
     } else {
-      const near = this.state.objects.some((o) => {
-        if (o.loc !== 'field') return false;
-        const t = this.objPos(o.id);
-        return Math.hypot(t.x - ep.x, t.y - ep.y) < inToM(14) && t.z < inToM(4);
-      });
-      if (near) targetZ = effectorPoint(spec, 0).z;
+      // Loose piece: claw at the piece's height (floor pickup, or a Pin riding in a Cup).
+      targetZ = Math.max(effectorPoint(spec, 0).z, tgt.obj !== null ? mToIn(this.objPos(tgt.obj).z) : 0);
     }
     if (targetZ === null) return null;
     let lo = 0;

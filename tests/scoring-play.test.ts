@@ -9,7 +9,7 @@ const ASSISTS = ASSIST.align | ASSIST.autoPlace | ASSIST.autoLift;
 const IN = 0.0254;
 
 /** Human-like approach: steer the robot center at the target, drive in, then hold align near it. */
-function approach(sim: Awaited<ReturnType<typeof makeSim>>, tx: number, ty: number, done: () => boolean, maxSec = 8, press?: () => boolean): number {
+function approach(sim: Awaited<ReturnType<typeof makeSim>>, tx: number, ty: number, done: () => boolean, maxSec = 8, press?: () => boolean, button: 'gripPin' | 'gripCup' = 'gripPin'): number {
   for (let t = 0; t < maxSec * 120; t++) {
     const p = sim.robotPose(0);
     const dx = tx * IN - p.x;
@@ -20,7 +20,7 @@ function approach(sim: Awaited<ReturnType<typeof makeSim>>, tx: number, ty: numb
     const c = near
       ? cmd({ align: true, assists: ASSISTS })
       : cmd({ fwd: Math.abs(err) < 0.4 ? 0.8 : 0, turn: Math.max(-0.7, Math.min(0.7, -err * 2)), assists: ASSISTS });
-    if (press && near) c.gripPin = press();
+    if (press && near) c[button] = press();
     sim.step({ cmds: [c], hp: [] });
     if (done()) return t / 120;
   }
@@ -79,4 +79,21 @@ test('A claw can grab a lying Pin by driving up and pressing grip', async () => 
   const secs = approach(sim, tx, ty, () => sim.obj(pin).loc === 'held', 8, () => n++ % 30 === 0 && sim.guide(0).grab !== null);
   console.log(`       grabbed after ${secs.toFixed(2)} s`);
   ok(Number.isFinite(secs), 'lying pin grabbed');
+});
+
+test('Every robot can grab a Cup (dual grips use their Cup slot, even while holding a Pin)', async () => {
+  for (const game of [OVERRIDE, PINNACLE]) {
+    for (const spec of presetsFor(game.id)) {
+      const sim = await makeSim(game, 'free', { empty: true, specs: [spec] });
+      const b = sim.body(sim.state.robots[0].body);
+      b.setTranslation({ x: -40 * IN, y: 0, z: 0 }, true);
+      b.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true);
+      const cupId = sim.addObject('cup', null, { x: -12 * IN, y: 0, z: 3.25 * IN }, { x: 0, y: 0, z: 0, w: 1 });
+      const dual = spec.effector.type !== 'claw';
+      let t = 0;
+      const secs = approach(sim, -12, 0, () => ['held', 'stored'].includes(sim.obj(cupId).loc), 6, () => t++ % 20 === 0, 'gripCup');
+      ok(Number.isFinite(secs), `${game.id} ${spec.name}: cup not grabbed`);
+      if (dual) ok(sim.state.robots[0].slots.some((id) => id >= 0 && sim.obj(id).kind === 'pin'), `${spec.name}: kept the preload Pin while grabbing the Cup`);
+    }
+  }
 });
