@@ -13,14 +13,12 @@
 - Deps: @types/react(-dom) (types only); @fontsource-variable/inter (self-hosted UI font, U1).
 - `npm test` = `tsx tests/run.ts`. vite.config.ts only raises chunkSizeWarningLimit (Rapier WASM in the lazy engine chunk).
 - Field frame: +y points to the red station. Override Autonomous Line = y = x; Quadrants L, A red; F, R blue.
-- Grasp = kinematic attachment; stacks/loader pieces kinematic; riders follow their base; wrist flips single pieces.
-- Goal body shields its stack: effector sweeps > 0.8 m/s through the column break it. Walls 0.3 m thick.
+- Grasp = kinematic attachment; stacks kinematic; effector sweeps > 0.8 m/s break a stack; walls 0.3 m thick.
 - Toggles/rollers: free revolute prism + bounded detent PD; tools force a detent target.
 - Robot: frictionless chassis collider + per-wheel force model; mass on the chassis (COM = wheel-model origin);
   locked to the tile plane; V5 motors current-limited. Effector collider only touches Toggles/Rollers.
 - Rules: SG9/5.3.5 ignore contact while shoved; touch = exact overlap (+0.15 in); red card zeroes the carded team.
-- Replays: seed + specs + quantized player commands + HP loads; bots re-created; 10 s Rapier snapshots for seeking.
-- Live score hides end-of-match position points until the endgame.
+- Replays: seed + specs + quantized player commands + HP loads; bots re-created; 10 s snapshots for seeking.
 
 ## UI decisions (U1–U6)
 - Accent: lime green #a6e35a (light theme #3d7f0f). Red/blue only mean alliance; danger is orange-red + octagon icon.
@@ -32,9 +30,8 @@
   orbits at ~30 fps, still under reduced motion; field colors come from the tokens (renderer.setPalette).
 - Routes: /:game (hub), /:game/play, /:game/robot, /:game/records, /:game/settings/:section, /design.
   Old /configure/* links redirect. Router stores scroll + focus per history entry (Back restores both).
-- Settings nav adds "Audio" to the six listed sections (sounds had no other home). Match setup (alliance, start,
-  bots, referee) moved into the Mode select side panel.
-- Home card shortcuts: Play P / Start, Configure C / X, Records R / Y.
+- Settings adds "Audio" to the six listed sections. Match setup moved into the Mode select side panel.
+- Home shortcuts: Play P / Start, Configure C / X, Records R / Y.
 - Builder: presets load as a copy into My Robot (never edited); Save updates the saved robot it came from, Save as
   new makes another. Unsaved My Robot asks before a load. Hovering/focusing a group outlines that part (Box3 helper).
 - Legality messages (engine/legality.ts) now name the fix ("Drivetrain is 66 W; cap is 55 W. …").
@@ -42,8 +39,7 @@
   Pause Settings/Controls open as dialogs so the match keeps its state. Clean HUD = score bar only.
 - ScoreLine.count and flag `why` (engine) feed the Results table and missed-achievement reasons; replays keep
   rule-call ticks (`calls`) for timeline markers; best records keep the robot name.
-- Old stylesheet deleted; every screen now uses tokens + components. Replay viewer: LB/RB = speed, X = play/pause,
-  Y = camera. Records remembers its tab while a replay is open.
+- Old stylesheet deleted; all screens use tokens + components. Replay viewer: LB/RB speed, X play, Y camera.
 
 ## Left unpolished (UI)
 - Nothing was checked in a real browser (spec: build + test only); layout and focus order need a visual pass.
@@ -56,15 +52,11 @@
 
 ## Open TODOs
 - Pinnacle Solo Coding is a timer/mode shell only (no routine editor yet). Inspire hook: `INSPIRE_ROBOTS_PER_TEAM`.
-- Renderer/UI verified by type-check + build only (no browser runs, per spec rules).
 - Bot replays depend on bot code: a change to src/bots invalidates older replays that include bots.
 
 ## EST values (not dimensioned in the manuals, or tuned)
-- Override: loader center x ±68.3, heights 14.37/22.97; Load Zones |x|≥46.6, |y|≥58.5; Midfield |x|+|y|≤22.72;
-  Auto Line tape 2.5; cross-arm offset 4.75; toggle overhang 0.4 + face order; neutral footprints; loader capacity 6.
-- Pinnacle: all coordinates; interior 140.4; roller 25.6 long at 13.2, face order, starts yellow; goal/pin/cup/loader
-  sizes (Override values); cup up-sides; start areas; "pinnacle" = 1 Cup + 1 Pin unit; no pause between periods.
-- Physics: piece masses 0.06/0.05 kg; pin insert 2.93; snap 1.25 in; 0.75 s placement grace; break speed 0.8 m/s.
-- Motors/mechanisms: V5 stall 2.1 N·m @100 rpm (5.5 W = half); wheel μ; mass model; lift ~14 in/s per 11 W;
-  wrist/claw timing; ~30 air strokes/tank; tool reach/timing.
-- Rules: load delay 1 s; SG13 lingering 3 s; SG7 1 in slack; holding-detection heuristic.
+- Override: loaders x ±68.3 (h 14.37/22.97); Load Zones |x|≥46.6, |y|≥58.5; Midfield |x|+|y|≤22.72; tape 2.5;
+  cross-arm 4.75; toggle overhang 0.4; loader capacity 6. Pinnacle: all coordinates; interior 140.4; roller 25.6
+  at 13.2, starts yellow; piece sizes from Override; "pinnacle" = 1 Cup + 1 Pin; no pause between periods.
+- Physics/motors: piece masses; pin insert 2.93; snap 1.25 in; 0.75 s grace; V5 stall 2.1 N·m @100 rpm; wheel μ;
+  lift ~14 in/s per 11 W; ~30 air strokes/tank. Rules: load delay 1 s; SG13 3 s; SG7 1 in slack.
