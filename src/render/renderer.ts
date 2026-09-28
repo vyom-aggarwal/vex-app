@@ -13,8 +13,8 @@ export type Quality = 'low' | 'medium' | 'high' | 'ultra';
 export type CameraMode = 'driver' | 'driverTrack' | 'chase' | 'orbit' | 'overhead' | 'audience';
 export const CAMERA_MODES: CameraMode[] = ['driver', 'driverTrack', 'chase', 'orbit', 'overhead', 'audience'];
 export const CAMERA_LABELS: Record<CameraMode, string> = {
-  driver: 'Driver Station',
-  driverTrack: 'Driver Station (tracking)',
+  driver: 'Driver station',
+  driverTrack: 'Driver station (tracking)',
   chase: 'Chase',
   orbit: 'Orbit',
   overhead: 'Overhead 2D',

@@ -5,8 +5,8 @@ import type { Replay } from '../shared/replay';
 import type { GameId, ModeId } from '../shared/types';
 import { applyAppearance, tokenMs } from './appearance';
 import { Backdrop } from './Backdrop';
-import { Footer, GAMES, PageHeader, TopBar, Wordmark, type Page, type SettingsSection } from './chrome';
-import { Button, ProgressBar, useToast } from './components';
+import { Footer, GAMES, TopBar, Wordmark, type Page, type SettingsSection } from './chrome';
+import { Button, ProgressBar, Skeleton, useToast } from './components';
 import { getRenderer, loadGame, loadPhysicsOnce, useGame } from './host';
 import { Icon } from './icons';
 import { lineup } from './lineup';
@@ -19,7 +19,7 @@ import { RobotPage } from './pages/RobotPage';
 import { SETTINGS_SECTIONS, SettingsPage } from './pages/SettingsPage';
 import { resolveQuality } from './quality';
 import { loadDraft } from './robots';
-import { navigate, restoreView } from './router';
+import { navigate, rememberView, restoreView } from './router';
 import { loadSettings, saveSettings, type Settings } from './settings';
 import { setAudioLevels, setMuted } from './sound';
 
@@ -67,6 +67,21 @@ function ViewLoading({ label }: { label: string }) {
       <Wordmark />
       <span className="zd-muted">{label}</span>
       <ProgressBar value={null} label={label} />
+    </div>
+  );
+}
+
+/** Stands in for a screen while its game definition loads (same header + card grid shape). */
+function PageSkeleton() {
+  return (
+    <div className="zd-skeleton-page" aria-hidden="true">
+      <Skeleton width="var(--space-16)" height="var(--control-sm)" />
+      <Skeleton width="calc(var(--space-16) * 4)" height="var(--fs-32)" />
+      <div className="zd-skeleton-grid">
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} height="calc(var(--space-16) * 2)" radius="var(--radius-md)" />
+        ))}
+      </div>
     </div>
   );
 }
@@ -196,16 +211,14 @@ export function App() {
   } else if (replay && def && def.id === replay.game) {
     view = (
       <Suspense fallback={<ViewLoading label="Loading replay" />}>
-        <div className="zd-legacy">
-          <ReplayViewer game={def} replay={replay.replay} at={replay.at} settings={settings} onExit={() => setReplay(null)} />
-        </div>
+        <ReplayViewer game={def} replay={replay.replay} at={replay.at} settings={settings} onExit={() => setReplay(null)} />
       </Suspense>
     );
   }
 
   const page = route.page;
   let content: ReactNode;
-  if (!def) content = null;
+  if (!def) content = <PageSkeleton />;
   else if (page === 'play')
     content = (
       <ModeSelectPage
@@ -214,6 +227,7 @@ export function App() {
         setSettings={setSettings}
         initial={lastMode}
         onLaunch={(mode) => {
+          rememberView();
           setLastMode(mode);
           setLaunch({ game, mode, seed: newSeed() });
         }}
@@ -225,12 +239,13 @@ export function App() {
     );
   else if (page === 'records')
     content = (
-      <>
-        <PageHeader title="Records" eyebrow={def.name} parent={`/${game}`} />
-        <div className="zd-legacy">
-          <RecordsPage game={def} onWatch={(r) => setReplay({ game, replay: r })} />
-        </div>
-      </>
+      <RecordsPage
+        game={def}
+        onWatch={(r) => {
+          rememberView();
+          setReplay({ game, replay: r });
+        }}
+      />
     );
   else if (page === 'settings') content = <SettingsPage game={game} section={route.section} settings={settings} setSettings={setSettings} />;
   else content = <HomePage game={game} />;

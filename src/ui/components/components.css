@@ -259,8 +259,8 @@
 /* ---------------------------------------------------------------- Segmented control */
 .zd-seg {
   display: inline-flex;
-  padding: 2px;
-  gap: 2px;
+  padding: var(--inset);
+  gap: var(--inset);
   border: var(--hairline) solid var(--line-2);
   border-radius: var(--radius-sm);
   background: var(--bg-1);
@@ -281,10 +281,10 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: calc(var(--control-md) - 6px);
+  min-height: calc(var(--control-md) - 3 * var(--inset));
   padding: 0 var(--space-3);
   border: 0;
-  border-radius: calc(var(--radius-sm) - 2px);
+  border-radius: calc(var(--radius-sm) - var(--inset));
   background: transparent;
   color: var(--text-2);
   font-size: var(--fs-14);
@@ -320,7 +320,7 @@
   cursor: not-allowed;
 }
 .zd-seg--sm > button {
-  min-height: calc(var(--control-sm) - 6px);
+  min-height: calc(var(--control-sm) - 3 * var(--inset));
   padding: 0 var(--space-2);
   font-size: var(--fs-13);
 }
@@ -357,8 +357,8 @@
   position: absolute;
   left: var(--space-2);
   right: var(--space-2);
-  bottom: -1px;
-  height: 2px;
+  bottom: calc(var(--hairline) * -1);
+  height: var(--indicator);
   border-radius: var(--radius-pill);
   background: var(--accent);
   transform: scaleX(0);
@@ -409,10 +409,10 @@
 }
 .zd-toggle-knob {
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: calc(1.5rem - 6px);
-  height: calc(1.5rem - 6px);
+  top: var(--inset);
+  left: var(--inset);
+  width: calc(1.5rem - 3 * var(--inset));
+  height: calc(1.5rem - 3 * var(--inset));
   border-radius: var(--radius-pill);
   background: var(--text-2);
   transition: transform var(--dur-fast) var(--ease-enter);
@@ -565,17 +565,17 @@ textarea.zd-input {
   cursor: pointer;
 }
 .zd-slider input[type='range']::-webkit-slider-runnable-track {
-  height: 4px;
+  height: var(--track-h);
   border-radius: var(--radius-pill);
   background: linear-gradient(to right, var(--accent) var(--pct, 0%), var(--line-2) var(--pct, 0%));
 }
 .zd-slider input[type='range']::-moz-range-track {
-  height: 4px;
+  height: var(--track-h);
   border-radius: var(--radius-pill);
   background: var(--line-2);
 }
 .zd-slider input[type='range']::-moz-range-progress {
-  height: 4px;
+  height: var(--track-h);
   border-radius: var(--radius-pill);
   background: var(--accent);
 }
@@ -583,7 +583,7 @@ textarea.zd-input {
   -webkit-appearance: none;
   width: 1rem;
   height: 1rem;
-  margin-top: calc(2px - 0.5rem);
+  margin-top: calc(var(--track-h) / 2 - 0.5rem);
   border-radius: var(--radius-pill);
   background: var(--text-1);
   border: var(--stroke) solid var(--accent);
@@ -1064,7 +1064,7 @@ button.zd-chip:hover .zd-chip-x {
 .zd-field-text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--inset);
   min-width: 0;
 }
 .zd-field-label {
@@ -1226,10 +1226,10 @@ button.zd-chip:hover .zd-chip-x {
   color: var(--danger);
 }
 .zd-toast--red {
-  box-shadow: inset 3px 0 0 var(--red), var(--shadow-float);
+  box-shadow: inset var(--stripe) 0 0 var(--red), var(--shadow-float);
 }
 .zd-toast--blue {
-  box-shadow: inset 3px 0 0 var(--blue), var(--shadow-float);
+  box-shadow: inset var(--stripe) 0 0 var(--blue), var(--shadow-float);
 }
 @keyframes zd-toast-in {
   from {
@@ -1398,7 +1398,7 @@ button.zd-chip.is-press {
   flex: none;
   width: 1.25rem;
   height: 1.25rem;
-  margin-top: 1px;
+  margin-top: var(--hairline);
   border: var(--stroke) solid var(--line-2);
   border-radius: var(--radius-pill);
   color: var(--accent-text);
@@ -1440,7 +1440,7 @@ button.zd-chip.is-press {
   cursor: pointer;
 }
 .zd-swatch .zd-icon {
-  padding: 2px;
+  padding: var(--inset);
   border-radius: var(--radius-pill);
   background: var(--bg-0);
   box-sizing: content-box;
@@ -1453,7 +1453,7 @@ button.zd-chip.is-press {
 }
 .zd-swatch[aria-checked='true'] {
   outline: var(--stroke) solid var(--text-1);
-  outline-offset: 2px;
+  outline-offset: var(--focus-offset);
 }
 .zd-swatch.is-auto {
   width: auto;
@@ -1461,4 +1461,33 @@ button.zd-chip.is-press {
   background: var(--bg-1);
   font-size: var(--fs-13);
   font-weight: var(--fw-medium);
+}
+
+/* ---------------------------------------------------------------- Shared states */
+/* Any button without its own disabled style still reads as disabled. */
+:where(button):disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Reduced motion: no travel or scaling; loading indicators pulse in place instead of sliding. */
+:root[data-motion='reduce'] .zd-skeleton,
+:root[data-motion='reduce'] .zd-progress--indeterminate > span {
+  animation: zd-pulse var(--dur-loop) ease-in-out infinite;
+  transform: none;
+  width: 100%;
+}
+:root[data-motion='reduce'] :is(button, a, .zd-strip-card):active {
+  transform: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) .zd-skeleton,
+  :root:not([data-motion='full']) .zd-progress--indeterminate > span {
+    animation: zd-pulse var(--dur-loop) ease-in-out infinite;
+    transform: none;
+    width: 100%;
+  }
+  :root:not([data-motion='full']) :is(button, a, .zd-strip-card):active {
+    transform: none !important;
+  }
 }

@@ -21,10 +21,15 @@ function focusIndex(): number | undefined {
   return i >= 0 ? i : undefined;
 }
 
+/** Save the current screen's scroll and focus into its history entry (before leaving it). */
+export function rememberView(): void {
+  history.replaceState({ ...state(), scroll: window.scrollY, focus: focusIndex() } satisfies NavState, '');
+}
+
 export function navigate(to: string, opts: { replace?: boolean } = {}): void {
   if (location.pathname + location.search !== to) {
+    rememberView();
     const cur = state();
-    history.replaceState({ ...cur, scroll: window.scrollY, focus: focusIndex() } satisfies NavState, '');
     const next: NavState = { depth: opts.replace ? cur.depth : cur.depth + 1 };
     if (opts.replace) history.replaceState(next, '', to);
     else history.pushState(next, '', to);

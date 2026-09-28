@@ -42,12 +42,3 @@ export function lineup(game: GameDefinition, mode: ModeDef, player: RobotSpec, s
   for (let i = 0; i < mode.robots[theirs]; i++) add(opp[i] ?? s.opponent1, theirs, i);
   return out;
 }
-
-/** Human-readable lineup summary for the Play screen. */
-export function describeSlot(slot: BotSlot): string {
-  if (slot.kind === 'none') return 'Empty';
-  if (slot.kind === 'dummy') return 'Dummy (stationary)';
-  const style = { scorer: 'Scorer', controller: 'Toggle/Roller', defender: 'Defender', mixed: 'Mixed' }[slot.style];
-  const level = { easy: 'Easy', normal: 'Medium', hard: 'Hard' }[slot.level];
-  return `AI ${level} · ${style}`;
-}

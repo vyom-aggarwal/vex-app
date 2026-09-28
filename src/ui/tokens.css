@@ -89,6 +89,10 @@
   --radius-pill: 999px;
   --hairline: 1px;
   --stroke: 1.5px;
+  --indicator: 2px;
+  --inset: 2px;
+  --track-h: 4px;
+  --stripe: 3px;
 
   /* Elevation: borders do the work; one shadow for floating menus and dialogs. */
   --shadow-float: 0 12px 32px rgb(0 0 0 / 0.45), 0 2px 6px rgb(0 0 0 / 0.3);

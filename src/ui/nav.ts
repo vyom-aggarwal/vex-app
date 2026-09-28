@@ -219,6 +219,8 @@ function activate(): void {
 const isField = (t: EventTarget | null): boolean =>
   t instanceof HTMLElement && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
 
+const isControl = (t: EventTarget | null): boolean => t instanceof HTMLElement && (t.tagName === 'BUTTON' || t.tagName === 'A' || !!t.getAttribute('role'));
+
 let started = false;
 
 /** Start the global listeners and the gamepad poll loop (idempotent). */
@@ -238,7 +240,7 @@ export function startNav(): void {
         if (goBack()) e.preventDefault();
       } else if ((e.key === '[' || e.key === ']') && !isField(e.target) && activeScope()) {
         switchTab(e.key === ']' ? 1 : -1);
-      } else if (!isField(e.target) && !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat && activeScope()) {
+      } else if (!isField(e.target) && !(isControl(e.target) && (e.code === 'Space' || e.code === 'Enter')) && !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat && activeScope()) {
         if (runShortcut((s) => s.code === e.code)) e.preventDefault();
       }
     },

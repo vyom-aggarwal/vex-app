@@ -77,7 +77,7 @@ export const ACTIONS: ActionInfo[] = [
   { id: 'camera', label: 'Cycle camera', group: 'Match and view', edge: true },
   { id: 'view2d', label: 'Toggle 2D / 3D view', group: 'Match and view', edge: true },
   { id: 'breakdown', label: 'Show score breakdown', group: 'Match and view', edge: true },
-  { id: 'spawn', label: 'Spawn piece (Free Drive)', group: 'Match and view', edge: true },
+  { id: 'spawn', label: 'Spawn piece (Free drive)', group: 'Match and view', edge: true },
 ];
 
 export interface Bindings {

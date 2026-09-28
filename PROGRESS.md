@@ -7,7 +7,7 @@
 - [x] U3 shell, Home hub, Mode select, Settings
 - [x] U4 Robot builder
 - [x] U5 HUD, pause, toasts, Results
-- [ ] U6 Records, replay viewer, states, sounds, reduced motion, gamepad audit
+- [x] U6 Records, replay viewer, states, sounds, reduced motion, gamepad audit (`npm test` 44 pass, build ok)
 
 ## Engine decisions (P1–P9)
 - Deps: @types/react(-dom) (types only); @fontsource-variable/inter (self-hosted UI font, U1).
@@ -42,7 +42,17 @@
   Pause Settings/Controls open as dialogs so the match keeps its state. Clean HUD = score bar only.
 - ScoreLine.count and flag `why` (engine) feed the Results table and missed-achievement reasons; replays keep
   rule-call ticks (`calls`) for timeline markers; best records keep the robot name.
-- Legacy screens still being migrated are wrapped in .zd-legacy (legacy.css, tokens only; deleted in U6).
+- Old stylesheet deleted; every screen now uses tokens + components. Replay viewer: LB/RB = speed, X = play/pause,
+  Y = camera. Records remembers its tab while a replay is open.
+
+## Left unpolished (UI)
+- Nothing was checked in a real browser (spec: build + test only); layout and focus order need a visual pass.
+- Media-query breakpoints are px literals (CSS can't read custom properties there); the start map uses field-inch SVG units.
+- 2D view gained 12 px uppercase Goal/Loader labels, but meshes are still flat-shaded solids, not outline drawings.
+- Field materials only got neutral lights; no new brushed-metal perimeter texture. Cameras keep their old smoothing.
+- Toast action buttons sit outside nav scopes (not gamepad-reachable); the same actions exist in Settings.
+- Part highlight is a bounding-box outline, not a per-mesh tint. Arrow keys don't move focus spatially (gamepad only).
+- Replays saved before U5 have no rule-call markers.
 
 ## Open TODOs
 - Pinnacle Solo Coding is a timer/mode shell only (no routine editor yet). Inspire hook: `INSPIRE_ROBOTS_PER_TEAM`.

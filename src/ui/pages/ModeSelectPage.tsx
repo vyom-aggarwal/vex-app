@@ -70,13 +70,13 @@ function StartMap({ def, settings, onPick }: { def: GameDefinition; settings: Se
             }}
           >
             <rect x={X(cx) - 9} y={Y(cy) - 9} width={18} height={18} rx={2} />
-            <text x={X(cx)} y={Y(cy) + 3.5}>
+            <text x={X(cx)} y={Y(cy) + 3.5} fontSize={7}>
               {i + 1}
             </text>
           </g>
         );
       })}
-      <text x={0} y={H + 6} className="zd-startmap-station">
+      <text x={0} y={H + 6} fontSize={5} className="zd-startmap-station">
         YOUR DRIVER STATION
       </text>
     </svg>
