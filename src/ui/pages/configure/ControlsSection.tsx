@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ACTIONS, DEFAULT_BINDINGS, conflicts, keyLabel, padLabel, type Action, type ActionGroup, type Bindings } from '../../../shared/input/bindings';
 import { captureNext, firstGamepad } from '../../../shared/input/input';
 import type { DriveMode } from '../../../shared/input/mapping';
-import { Field, Section, Segmented, Slider } from '../../components';
+import { Field, Section, Segmented, Slider } from '../../formLegacy';
 import type { Settings } from '../../settings';
 
 const GROUPS: ActionGroup[] = ['Driving', 'Mechanisms', 'Human player', 'Match and view'];

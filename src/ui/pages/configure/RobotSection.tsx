@@ -6,7 +6,7 @@ import { presetsFor } from '../../../games/presets';
 import type { ZRenderer } from '../../../render/renderer';
 import { exportRobot, importRobot } from '../../../shared/robotCodec';
 import type { Cartridge, DriveType, EffectorType, IntakeType, LiftType, MotorW, RobotSpec, ToolType, WheelSize } from '../../../shared/types';
-import { Field, OptionCards, Section, Segmented, Slider, Stat, Stepper, Swatches, Switch } from '../../components';
+import { Field, OptionCards, Section, Segmented, Slider, Stat, Stepper, Swatches, Switch } from '../../formLegacy';
 import { attachCanvas, getRenderer } from '../../host';
 import { deleteRobot, listRobots, loadDraft, loadThumbs, newId, saveDraft, saveThumb, upsertRobot } from '../../robots';
 import type { Settings } from '../../settings';

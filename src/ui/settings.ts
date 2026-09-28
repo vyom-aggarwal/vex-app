@@ -8,6 +8,8 @@ export type QualitySetting = Quality | 'auto';
 export type CameraMode = 'driver' | 'driverTrack' | 'chase' | 'orbit' | 'overhead' | 'audience';
 export type Theme = 'system' | 'light' | 'dark';
 export type PerfReadout = 'off' | 'simple' | 'detailed';
+export type Palette = 'standard' | 'colorblind';
+export type MotionPref = 'system' | 'reduce' | 'full';
 
 /** Who drives a partner / opponent slot. */
 export interface BotSlot {
@@ -40,7 +42,18 @@ export interface Settings extends DriverTuning {
   sfx: number;
   voice: number;
   theme: Theme;
+  /** Menu focus/select ticks. */
+  uiSounds: boolean;
+  /** Top-bar mute: silences everything without touching the levels. */
+  muted: boolean;
   messages: boolean;
+  // Accessibility
+  palette: Palette;
+  /** UI scale (0.9–1.3): scales the type and spacing tokens. */
+  uiScale: number;
+  motion: MotionPref;
+  /** Hide everything in a match except the score bar. */
+  cleanHud: boolean;
   perf: PerfReadout;
   // Graphics
   view: '3d' | '2d';
@@ -69,7 +82,13 @@ export const DEFAULT_SETTINGS: Settings = {
   sfx: 1,
   voice: 1,
   theme: 'dark',
+  uiSounds: true,
+  muted: false,
   messages: true,
+  palette: 'standard',
+  uiScale: 1,
+  motion: 'system',
+  cleanHud: false,
   perf: 'off',
   view: '3d',
   camera: 'driver',
@@ -124,7 +143,13 @@ export function loadSettings(): Settings {
     sfx: clamp01(raw.sfx, d.sfx),
     voice: clamp01(raw.voice, d.voice),
     theme: oneOf(raw.theme, ['system', 'light', 'dark'] as const, d.theme),
+    uiSounds: typeof raw.uiSounds === 'boolean' ? raw.uiSounds : d.uiSounds,
+    muted: typeof raw.muted === 'boolean' ? raw.muted : d.muted,
     messages: typeof raw.messages === 'boolean' ? raw.messages : d.messages,
+    palette: oneOf(raw.palette, ['standard', 'colorblind'] as const, d.palette),
+    uiScale: typeof raw.uiScale === 'number' ? Math.min(1.3, Math.max(0.9, raw.uiScale)) : d.uiScale,
+    motion: oneOf(raw.motion, ['system', 'reduce', 'full'] as const, d.motion),
+    cleanHud: typeof raw.cleanHud === 'boolean' ? raw.cleanHud : d.cleanHud,
     perf: oneOf(raw.perf, ['off', 'simple', 'detailed'] as const, d.perf),
     view: oneOf(raw.view, ['3d', '2d'] as const, d.view),
     camera: oneOf(raw.camera, ['driver', 'driverTrack', 'chase', 'orbit', 'overhead', 'audience'] as const, d.camera),

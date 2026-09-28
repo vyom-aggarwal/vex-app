@@ -1,4 +1,4 @@
-import { Field, Section, Segmented, Slider, Switch } from '../../components';
+import { Field, Section, Segmented, Slider, Switch } from '../../formLegacy';
 import type { CameraMode, Settings } from '../../settings';
 import { play, say, setAudioLevels } from '../../sound';
 

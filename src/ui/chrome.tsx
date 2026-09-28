@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Phase } from '../shared/matchTimer';
 import type { GameId } from '../shared/types';
+import { navigate } from './router';
 
 export const GAMES: { id: GameId; name: string; org: string; blurb: string }[] = [
   { id: 'override', name: 'Override', org: 'VEX V5RC 2026-27', blurb: 'Nest Pins and Cups on nine goals, flip the Toggles, and fight for the Midfield.' },
@@ -21,10 +22,7 @@ export const CONFIG_SECTIONS: { id: ConfigSection; label: string; sub: string }[
   { id: 'graphics', label: 'Graphics', sub: 'View, camera, quality' },
 ];
 
-export function navigate(to: string): void {
-  if (location.pathname + location.search !== to) history.pushState(null, '', to);
-  window.dispatchEvent(new PopStateEvent('popstate'));
-}
+export { navigate } from './router';
 
 export function Link({ to, className, children, title }: { to: string; className?: string; children: ReactNode; title?: string }) {
   return (

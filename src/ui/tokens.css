@@ -1,0 +1,289 @@
+/*
+ * ZDrive design tokens. Every color, size, radius, shadow and duration used by components and
+ * screens comes from here. Sizes are in rem so the UI scale setting (html font-size) scales type and
+ * spacing together. Dark is the default theme; light and the colorblind palette override the same names.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces: app background → panels → raised → hover/pressed */
+  --bg-0: #0b0d10;
+  --bg-1: #121519;
+  --bg-2: #191d22;
+  --bg-3: #22272e;
+  --line-1: #242a31;
+  --line-2: #343c46;
+
+  /* Text. text-1 and text-2 meet WCAG AA on bg-0…bg-2. */
+  --text-1: #e9edf2;
+  --text-2: #a5aebb;
+  --text-3: #6f7986;
+
+  /* The one interaction accent: a crisp lime green (never used for alliance or status). */
+  --accent: #a6e35a;
+  --accent-hover: #b8ee72;
+  --accent-press: #8fcb44;
+  --accent-text: #0d1405;
+  --accent-soft: rgb(166 227 90 / 0.14);
+
+  /* Alliance colors (reserved for alliance meaning) and game yellow. Equal luminance. */
+  --red: #f0525c;
+  --red-soft: rgb(240 82 92 / 0.16);
+  --blue: #4c8df6;
+  --blue-soft: rgb(76 141 246 / 0.16);
+  --yellow: #f2c230;
+  --yellow-soft: rgb(242 194 48 / 0.16);
+
+  /* Status. danger is orange-red and always paired with the danger icon. */
+  --ok: #3fcf8e;
+  --ok-soft: rgb(63 207 142 / 0.14);
+  --warn: #f5b53d;
+  --warn-soft: rgb(245 181 61 / 0.14);
+  --danger: #ff7a45;
+  --danger-soft: rgb(255 122 69 / 0.14);
+  --danger-text: #1c0b03;
+  --on-alliance: #ffffff;
+
+  /* Scrims (in-match overlays dim; nothing blurs). */
+  --scrim: rgb(5 6 8 / 0.62);
+  --scrim-strong: rgb(5 6 8 / 0.82);
+  --scrim-hero: linear-gradient(to bottom, rgb(11 13 16 / 0.35), rgb(11 13 16 / 0.9));
+  --hud-surface: rgb(11 13 16 / 0.78);
+
+  /* Type */
+  --font: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace;
+  --font-features: 'tnum' 1, 'cv11' 1, 'ss01' 1;
+  --fs-12: 0.75rem;
+  --fs-13: 0.8125rem;
+  --fs-14: 0.875rem;
+  --fs-16: 1rem;
+  --fs-20: 1.25rem;
+  --fs-24: 1.5rem;
+  --fs-32: 2rem;
+  --fs-48: 3rem;
+  --fs-72: 4.5rem;
+  --lh-display: 1.2;
+  --lh-body: 1.5;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --tracking-label: 0.06em;
+  --tracking-tight: -0.02em;
+  --tracking-display: -0.025em;
+
+  /* Space (4px grid) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Shape */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-pill: 999px;
+  --hairline: 1px;
+  --stroke: 1.5px;
+
+  /* Elevation: borders do the work; one shadow for floating menus and dialogs. */
+  --shadow-float: 0 12px 32px rgb(0 0 0 / 0.45), 0 2px 6px rgb(0 0 0 / 0.3);
+
+  /* Control sizes (hit targets ≥ 40px at md) */
+  --control-sm: 2rem;
+  --control-md: 2.5rem;
+  --control-lg: 3rem;
+  --icon-sm: 1rem;
+  --icon-md: 1.25rem;
+  --icon-lg: 1.5rem;
+  --focus-width: 2px;
+  --focus-offset: 2px;
+
+  /* Layout */
+  --content-max: 75rem;
+  --page-pad: var(--space-8);
+  --topbar-h: 3.5rem;
+  --grid-gap: var(--space-6);
+  --panel-w: 26rem;
+  --nav-w: 13.5rem;
+  --card-min: 15rem;
+  --thumb: 7.5rem;
+  --tooltip-max: 17.5rem;
+  --dialog-w: 30rem;
+  --toast-w: 26rem;
+  --hud-inset: var(--space-4);
+  --hud-chip-w: 13rem;
+  --score-w: 4ch;
+  --bar-h: 0.375rem;
+  --progress-h: 2px;
+
+  /* Motion */
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+  --tooltip-delay: 400ms;
+  --dur-toast: 4000ms;
+  --dur-spin: 800ms;
+  --dur-loop: 1400ms;
+  --spinner-delay: 300ms;
+  --ease-enter: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --motion-distance: 8px;
+  --z-backdrop: 0;
+  --z-page: 1;
+  --z-topbar: 10;
+  --z-hud: 20;
+  --z-overlay: 30;
+  --z-float: 40;
+  --z-toast: 50;
+  --z-boot: 60;
+}
+
+/* Light theme: same names, light surfaces. */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg-0: #f3f5f8;
+  --bg-1: #ffffff;
+  --bg-2: #f8f9fb;
+  --bg-3: #eceff3;
+  --line-1: #e1e5ea;
+  --line-2: #c9d0d8;
+  --text-1: #12161b;
+  --text-2: #4c5562;
+  --text-3: #7c8591;
+  --accent: #3d7f0f;
+  --accent-hover: #336c0c;
+  --accent-press: #2a5a09;
+  --accent-text: #ffffff;
+  --accent-soft: rgb(61 127 15 / 0.1);
+  --red: #d02f3a;
+  --red-soft: rgb(208 47 58 / 0.1);
+  --blue: #2f6bd6;
+  --blue-soft: rgb(47 107 214 / 0.1);
+  --yellow: #b58a00;
+  --yellow-soft: rgb(181 138 0 / 0.12);
+  --ok: #16875a;
+  --ok-soft: rgb(22 135 90 / 0.1);
+  --warn: #a86400;
+  --warn-soft: rgb(168 100 0 / 0.1);
+  --danger: #c4410f;
+  --danger-soft: rgb(196 65 15 / 0.1);
+  --danger-text: #ffffff;
+  --scrim: rgb(18 22 27 / 0.45);
+  --scrim-strong: rgb(18 22 27 / 0.7);
+  --scrim-hero: linear-gradient(to bottom, rgb(243 245 248 / 0.4), rgb(243 245 248 / 0.92));
+  --hud-surface: rgb(255 255 255 / 0.86);
+  --shadow-float: 0 12px 32px rgb(18 22 27 / 0.16), 0 2px 6px rgb(18 22 27 / 0.08);
+}
+
+/* Colorblind-safe alliance palette (vermillion / sky / yellow), per theme. */
+:root[data-palette='cb'] {
+  --red: #f07a2a;
+  --red-soft: rgb(240 122 42 / 0.16);
+  --blue: #56b4e9;
+  --blue-soft: rgb(86 180 233 / 0.16);
+  --yellow: #f0e442;
+  --yellow-soft: rgb(240 228 66 / 0.16);
+}
+:root[data-theme='light'][data-palette='cb'] {
+  --red: #b54a00;
+  --red-soft: rgb(181 74 0 / 0.1);
+  --blue: #0068a8;
+  --blue-soft: rgb(0 104 168 / 0.1);
+  --yellow: #8a7d00;
+  --yellow-soft: rgb(138 125 0 / 0.12);
+}
+
+/* Reduced motion: no travel, fades only. */
+:root[data-motion='reduce'] {
+  --motion-distance: 0px;
+  --dur-slow: 200ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) {
+    --motion-distance: 0px;
+    --dur-slow: 200ms;
+  }
+}
+
+/* Base */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--bg-0);
+  color: var(--text-1);
+  font-family: var(--font);
+  font-size: var(--fs-14);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-regular);
+  font-feature-settings: var(--font-features);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+h1,
+h2,
+h3,
+h4 {
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-display);
+  letter-spacing: var(--tracking-tight);
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+a {
+  color: inherit;
+}
+::selection {
+  background: var(--accent-soft);
+}
+:focus {
+  outline: none;
+}
+:focus-visible,
+.zd-focus-ring:focus {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+/* Gamepad navigation shows the ring even for programmatic focus. */
+:root[data-input='pad'] :focus {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+.zd-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

@@ -10,7 +10,10 @@ import { PlayPage } from './pages/PlayPage';
 import { RecordsPage } from './pages/RecordsPage';
 import { loadDraft } from './robots';
 import { loadSettings, saveSettings, type Settings } from './settings';
-import { setAudioLevels } from './sound';
+import { setAudioLevels, setMuted } from './sound';
+import { applyAppearance } from './appearance';
+import { setUiSounds, startNav } from './nav';
+import { DesignPage } from './pages/design/DesignPage';
 
 const GameView = lazy(() => import('./GameView'));
 const ReplayViewer = lazy(() => import('./ReplayViewer'));
@@ -25,10 +28,6 @@ function parse(path: string): Route {
   return { game, page: game ? page : 'home', section };
 }
 
-function applyTheme(t: Settings['theme']): void {
-  const dark = t === 'dark' || (t === 'system' && !window.matchMedia?.('(prefers-color-scheme: light)').matches);
-  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-}
 
 function Home({ game }: { game: GameId }) {
   return (
@@ -88,9 +87,14 @@ export function App() {
   }, [route.game]);
 
   useEffect(() => {
-    applyTheme(settings.theme);
+    applyAppearance(settings);
+  }, [settings.theme, settings.palette, settings.motion, settings.uiScale]);
+  useEffect(() => {
     setAudioLevels({ master: settings.master, sfx: settings.sfx, voice: settings.voice });
-  }, [settings.theme, settings.master, settings.sfx, settings.voice]);
+    setMuted(settings.muted);
+    setUiSounds(settings.uiSounds);
+  }, [settings.master, settings.sfx, settings.voice, settings.muted, settings.uiSounds]);
+  useEffect(() => startNav(), []);
 
   const def = useGame(game);
 
@@ -123,6 +127,7 @@ export function App() {
     );
   }
 
+  if (location.pathname.toLowerCase() === '/design') return <DesignPage settings={settings} setSettings={setSettings} />;
   if (route.page === 'home' || !route.game) return <Home game={game} />;
   if (!def) return <div className="loading">Loading…</div>;
 

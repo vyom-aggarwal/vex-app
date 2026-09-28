@@ -1,6 +1,6 @@
 import type { GameDefinition } from '../../../engine/types';
 import type { BotLevel, BotStyle } from '../../../shared/types';
-import { Field, Section, Segmented, Switch } from '../../components';
+import { Field, Section, Segmented, Switch } from '../../formLegacy';
 import type { BotSlot, Settings } from '../../settings';
 
 const STYLES: { value: BotStyle; label: string }[] = [

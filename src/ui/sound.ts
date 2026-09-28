@@ -3,7 +3,7 @@
  * browser's speech synthesis. Every call is a no-op when audio isn't available.
  */
 
-export type Sfx = 'start' | 'end' | 'warn' | 'grab' | 'place' | 'call' | 'load' | 'deny' | 'click';
+export type Sfx = 'start' | 'end' | 'warn' | 'grab' | 'place' | 'call' | 'load' | 'deny' | 'click' | 'focus' | 'select';
 
 export interface AudioLevels {
   master: number;
@@ -13,9 +13,22 @@ export interface AudioLevels {
 
 let ctx: AudioContext | null = null;
 let levels: AudioLevels = { master: 0.8, sfx: 1, voice: 1 };
+let muted = false;
 
 export function setAudioLevels(l: AudioLevels): void {
   levels = l;
+}
+
+/** Top-bar mute: silences sounds and voice without changing the levels. */
+export function setMuted(m: boolean): void {
+  muted = m;
+  if (m) {
+    try {
+      if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 function audio(): AudioContext | null {
@@ -33,10 +46,11 @@ function audio(): AudioContext | null {
 }
 
 function tone(freq: number, dur: number, type: OscillatorType, gain: number, at = 0, slideTo?: number): void {
-  const a = audio();
-  if (!a) return;
+  if (muted) return;
   const vol = gain * levels.master * levels.sfx;
   if (vol <= 0) return;
+  const a = audio();
+  if (!a) return;
   const t = a.currentTime + at;
   const o = a.createOscillator();
   const g = a.createGain();
@@ -85,13 +99,19 @@ export function play(s: Sfx): void {
     case 'click':
       tone(1200, 0.03, 'square', 0.05);
       break;
+    case 'focus':
+      tone(1800, 0.018, 'sine', 0.035);
+      break;
+    case 'select':
+      tone(1100, 0.03, 'sine', 0.06, 0, 1400);
+      break;
   }
 }
 
 export function say(text: string): void {
   try {
     const vol = levels.master * levels.voice;
-    if (vol <= 0 || typeof speechSynthesis === 'undefined') return;
+    if (muted || vol <= 0 || typeof speechSynthesis === 'undefined') return;
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.volume = Math.min(1, vol);
