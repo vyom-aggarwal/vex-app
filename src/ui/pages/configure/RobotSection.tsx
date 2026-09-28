@@ -135,9 +135,35 @@ export function RobotSection({ def, settings, setSettings }: { def: GameDefiniti
     <div className="robot-page">
       <div className="robot-main">
         <section className="card robot-head">
-          <div className="preview-wrap">
-            <div className="preview" ref={host} />
-            <Segmented small value={view} onChange={setView} options={[{ value: '3d', label: '3D' }, { value: '2d', label: '2D' }]} />
+          <div className="head-left">
+            <div className="preview-wrap">
+              <div className="preview" ref={host} />
+              <Segmented small value={view} onChange={setView} options={[{ value: '3d', label: '3D' }, { value: '2d', label: '2D' }]} />
+            </div>
+            <section className={`legality ${legal.ok ? 'ok' : 'bad'}`}>
+              <h3>{legal.ok ? `✓ Legal for ${def.name}` : `✕ Not legal for ${def.name}`}</h3>
+              <Bar label="Total motor power" value={legal.totalW} cap={def.builder.totalWatts} />
+              {def.builder.driveWatts !== null && <Bar label="Drivetrain power" value={legal.driveW} cap={def.builder.driveWatts} />}
+              <p>
+                Expanded {legal.maxLength.toFixed(1)}" × {legal.maxWidth.toFixed(1)}" (≤ {def.builder.footprintMax}"), height {legal.maxHeight.toFixed(1)}"
+                {def.builder.heightMax ? ` (≤ ${def.builder.heightMax}")` : ' (no limit)'}
+              </p>
+              <p className="dim">{legal.capacity}</p>
+              {legal.airActuations > 0 && <p className="dim">Air: about {legal.airActuations} actuations.</p>}
+              <ul>
+                {legal.errors.map((e) => (
+                  <li key={e} className="err">
+                    {e}
+                  </li>
+                ))}
+                {legal.warnings.map((w) => (
+                  <li key={w} className="warnline">
+                    {w}
+                  </li>
+                ))}
+              </ul>
+              {!legal.ok && <p className="hint">Illegal robots can still drive in Free Drive.</p>}
+            </section>
           </div>
           <div className="robot-head-info">
             <h2>{spec.name || 'My Robot'}</h2>
@@ -471,32 +497,6 @@ export function RobotSection({ def, settings, setSettings }: { def: GameDefiniti
         </Section>
       </div>
 
-      <aside className="robot-side">
-        <section className={`card legality ${legal.ok ? 'ok' : 'bad'}`}>
-          <h3>{legal.ok ? `✓ Legal for ${def.name}` : `✕ Not legal for ${def.name}`}</h3>
-          <Bar label="Total motor power" value={legal.totalW} cap={def.builder.totalWatts} />
-          {def.builder.driveWatts !== null && <Bar label="Drivetrain power" value={legal.driveW} cap={def.builder.driveWatts} />}
-          <p>
-            Expanded {legal.maxLength.toFixed(1)}" × {legal.maxWidth.toFixed(1)}" (≤ {def.builder.footprintMax}"), height {legal.maxHeight.toFixed(1)}"
-            {def.builder.heightMax ? ` (≤ ${def.builder.heightMax}")` : ' (no limit)'}
-          </p>
-          <p className="dim">{legal.capacity}</p>
-          {legal.airActuations > 0 && <p className="dim">Air: about {legal.airActuations} actuations.</p>}
-          <ul>
-            {legal.errors.map((e) => (
-              <li key={e} className="err">
-                {e}
-              </li>
-            ))}
-            {legal.warnings.map((w) => (
-              <li key={w} className="warnline">
-                {w}
-              </li>
-            ))}
-          </ul>
-          {!legal.ok && <p className="hint">Illegal robots can still drive in Free Drive.</p>}
-        </section>
-      </aside>
     </div>
   );
 }

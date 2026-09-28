@@ -358,11 +358,11 @@ h3 {
   display: flex;
   flex: 1;
   width: 100%;
-  max-width: 1500px;
+  max-width: 1800px;
   margin: 0 auto;
 }
 .sidebar {
-  width: 200px;
+  width: 190px;
   flex: none;
   padding: 18px 12px;
   display: flex;
@@ -396,7 +396,8 @@ h3 {
 .page {
   flex: 1;
   min-width: 0;
-  padding: 24px 22px 30px;
+  padding: 24px 28px 34px;
+  font-size: 1.02rem;
 }
 
 /* Play */
@@ -503,25 +504,26 @@ h3 {
 
 /* Configure */
 .configure-body {
-  display: grid;
-  grid-template-columns: 210px minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
-}
-.subnav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  position: sticky;
-  top: 76px;
+  gap: 16px;
+}
+/* Configure sections as a horizontal tab bar so the content gets the full width. */
+.subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
 }
 .subnav button {
   flex-direction: column;
   align-items: flex-start;
-  background: transparent;
-  border-color: transparent;
-  padding: 9px 12px;
+  background: var(--panel);
+  border-color: var(--line);
+  padding: 9px 16px;
   text-align: left;
+  min-width: 150px;
 }
 .subnav button small {
   color: var(--dim);
@@ -533,7 +535,7 @@ h3 {
 }
 .field {
   display: grid;
-  grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
+  grid-template-columns: minmax(170px, 260px) minmax(0, 1fr);
   gap: 14px;
   align-items: center;
   padding: 9px 0;
@@ -595,7 +597,7 @@ h3 {
   align-items: center;
   gap: 12px;
   width: 100%;
-  max-width: 440px;
+  max-width: 560px;
 }
 .slider output {
   min-width: 92px;
@@ -628,7 +630,7 @@ h3 {
 }
 .option-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 8px;
   margin-bottom: 8px;
 }
@@ -728,23 +730,27 @@ h3 {
 
 /* Robot page */
 .robot-page {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 16px;
-  align-items: start;
+  display: block;
 }
 .robot-main > * + * {
   margin-top: 14px;
 }
-.robot-side {
-  position: sticky;
-  top: 76px;
-}
 .robot-head {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: minmax(360px, 1.15fr) minmax(0, 1fr);
+  gap: 22px;
   align-items: start;
+}
+.head-left {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.head-left .legality {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
 }
 .preview-wrap {
   position: relative;
@@ -755,18 +761,18 @@ h3 {
   right: 8px;
 }
 .preview {
-  height: 260px;
+  height: 340px;
   border-radius: 10px;
   overflow: hidden;
   background: #0d0f12;
 }
 .robot-head-info h2 {
-  font-size: 1.4rem;
+  font-size: 1.6rem;
   margin: 0;
 }
 .stats {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-top: 12px;
 }
@@ -784,7 +790,7 @@ h3 {
   color: var(--faint);
 }
 .stat b {
-  font-size: 1.15rem;
+  font-size: 1.35rem;
   font-variant-numeric: tabular-nums;
 }
 .stat b span {
@@ -1512,11 +1518,9 @@ label.file {
 
 /* Responsive */
 @media (max-width: 1100px) {
-  .robot-page,
   .play-page {
     grid-template-columns: 1fr;
   }
-  .robot-side,
   .play-side {
     position: static;
   }
@@ -1548,6 +1552,9 @@ label.file {
   }
   .subnav button small {
     display: none;
+  }
+  .subnav button {
+    min-width: 0;
   }
   .field {
     grid-template-columns: 1fr;

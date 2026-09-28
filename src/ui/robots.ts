@@ -49,7 +49,17 @@ export function deleteRobot(g: GameId, id: string): RobotSpec[] {
 /** The working robot ("My Robot"). Falls back to the first preset. */
 export function loadDraft(g: GameId): RobotSpec {
   const d = loadJson<unknown>(draftKey(g), null);
-  if (valid(d, g)) return d;
+  if (valid(d, g)) {
+    // One-time upgrade: an untouched old starter (all-omni 4-wheel) gets the new omni-front / traction-rear setup.
+    const dr = d.drive;
+    const oldStarter =
+      dr.type === 'tank' && dr.wheelsPerSide === 2 && dr.wheelDia === 4 && dr.cartridge === 200 && dr.ratio === 1 && dr.omni.slice(0, 2).every((o) => o);
+    if (oldStarter && d.lift.type === 'arm' && d.effector.type === 'claw') {
+      d.drive.omni = [true, false, true, true];
+      saveDraft(d);
+    }
+    return d;
+  }
   const p = presetsFor(g)[0];
   return { ...structuredClone(p), id: 'draft', name: 'My Robot' };
 }
