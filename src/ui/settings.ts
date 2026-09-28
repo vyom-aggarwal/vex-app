@@ -97,6 +97,7 @@ export function loadSettings(): Settings {
     assistGrab: typeof raw.assistGrab === 'boolean' ? raw.assistGrab : d.assistGrab,
     assistPlace: typeof raw.assistPlace === 'boolean' ? raw.assistPlace : d.assistPlace,
     assistTool: typeof raw.assistTool === 'boolean' ? raw.assistTool : d.assistTool,
+    keyTurn: typeof raw.keyTurn === 'number' ? Math.min(1, Math.max(0.3, raw.keyTurn)) : d.keyTurn,
     bindings: normalizeBindings(raw.bindings as Partial<Bindings> | undefined),
     triggerThreshold: typeof raw.triggerThreshold === 'number' ? Math.min(0.95, Math.max(0.05, raw.triggerThreshold)) : d.triggerThreshold,
     alliance: oneOf(raw.alliance, ['red', 'blue'] as const, d.alliance),

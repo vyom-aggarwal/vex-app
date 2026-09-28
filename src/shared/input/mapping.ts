@@ -17,6 +17,8 @@ export interface DriverTuning {
   assistGrab: boolean;
   assistPlace: boolean;
   assistTool: boolean;
+  /** Keyboard turn power (0..1) when turning in place; arcs use 60% of this while driving. */
+  keyTurn: number;
 }
 
 export const DEFAULT_TUNING: DriverTuning = {
@@ -29,6 +31,7 @@ export const DEFAULT_TUNING: DriverTuning = {
   assistGrab: false,
   assistPlace: false,
   assistTool: false,
+  keyTurn: 0.7,
 };
 
 /** Mechanism buttons shared by keyboard and gamepad samples. */
@@ -145,12 +148,14 @@ export function mapDriverInput(
     }
   }
   fwd += keys.fwd;
+  // Keys are all-or-nothing: turn more gently while also driving so arcs stay controllable.
+  const kt = (t.keyTurn ?? KEY_TURN_SCALE) * (Math.abs(keys.fwd) > 0.05 ? 0.6 : 1);
   if (holo) {
     strafe += keys.strafe;
-    turn += keys.turn * KEY_TURN_SCALE;
+    turn += keys.turn * kt;
   } else {
     // A tank drive can't strafe: A/D turn instead.
-    turn += clamp(keys.turn + keys.strafe, -1, 1) * KEY_TURN_SCALE;
+    turn += clamp(keys.turn + keys.strafe, -1, 1) * kt;
   }
   fwd = clamp(fwd, -1, 1) * t.maxSpeed;
   strafe = holo ? clamp(strafe, -1, 1) * t.maxSpeed : 0;
@@ -172,4 +177,23 @@ export function mapDriverInput(
     align: b('align'),
     assists: assistMask(t),
   };
+}
+
+/**
+ * Keyboard ramp: keys jump from 0 to 1, which makes a real drivetrain lurch and slip. Ramp presses in
+ * over ~0.12 s but let go instantly, so stopping stays crisp. Gamepad sticks are analog and skip this.
+ */
+export class KeyRamp {
+  private v = { fwd: 0, strafe: 0, turn: 0 };
+  constructor(private riseRate = 8) {}
+
+  apply(k: KeyState, dt: number): KeyState {
+    const step = (cur: number, target: number): number => {
+      if (target === 0) return 0; // release instantly
+      const from = Math.sign(cur) === Math.sign(target) ? Math.abs(cur) : 0; // reversing restarts the ramp
+      return Math.sign(target) * Math.min(Math.abs(target), from + this.riseRate * dt);
+    };
+    this.v = { fwd: step(this.v.fwd, k.fwd), strafe: step(this.v.strafe, k.strafe), turn: step(this.v.turn, k.turn) };
+    return { ...k, ...this.v };
+  }
 }

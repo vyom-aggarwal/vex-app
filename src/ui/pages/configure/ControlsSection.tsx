@@ -123,6 +123,12 @@ export function ControlsSection({ settings, setSettings }: { settings: Settings;
         <PadLive />
       </Section>
 
+      <Section title="Keyboard driving">
+        <Field label="Turn speed" hint="Turning in place; turning while driving uses 60% of this for smoother arcs">
+          <Slider value={settings.keyTurn} min={0.3} max={1} step={0.05} format={(v) => `${Math.round(v * 100)}%`} onChange={(v) => set('keyTurn', v)} />
+        </Field>
+      </Section>
+
       {GROUPS.map((g) => (
         <Section key={g} title={g}>
           <table className="bind-table">

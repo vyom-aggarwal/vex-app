@@ -12,16 +12,19 @@ import type { MotorW, RobotSpec } from '../shared/types';
 export const STALL_TORQUE_100 = 2.1;
 export const motorStallTorque = (cartRpm: number, w: MotorW): number => STALL_TORQUE_100 * (100 / cartRpm) * (w === 11 ? 1 : 0.5);
 
+/** Theoretical (unlimited) stall torque over the current-limited torque. 2 → peak power ≈ 11 W. EST. */
+export const MOTOR_T0_RATIO = 2;
+
 /** Friction coefficients (EST). */
 export const MU = {
   tractionLong: 1.1,
   tractionLat: 1.0,
   omniLong: 0.9,
-  omniLat: 0.06,
+  omniLat: 0.12,
   rolling: 0.035,
 };
 /** Lateral slip speed (m/s) at which wheel side force saturates. */
-const LAT_SLIP = 0.15;
+const LAT_SLIP = 0.03;
 const ROLL_SLIP = 0.04;
 
 export interface Wheel {
@@ -208,7 +211,9 @@ export function wheelForces(m: DriveModel, p: Planar, volts: number[], dt: numbe
     const muLong = wh.omni ? MU.omniLong : MU.tractionLong;
     const muLat = wh.omni ? MU.omniLat : MU.tractionLat;
     const volt = volts[wh.group] ?? 0;
-    let fLong = m.stallForce[i] * (volt - vLong / m.freeSpeed[i]);
+    // V5 motors are current-limited: the linear back-EMF curve has twice the rated stall torque, clipped
+    // at the rated torque. That gives full torque up to half speed, ~11 W peak, and hard braking on release.
+    let fLong = clamp(MOTOR_T0_RATIO * m.stallForce[i] * (volt - vLong / m.freeSpeed[i]), -m.stallForce[i], m.stallForce[i]);
     fLong = clamp(fLong, -muLong * N, muLong * N);
     fLong -= MU.rolling * N * Math.tanh(vLong / ROLL_SLIP);
     // Saturating side friction, limited so one step never reverses the slip (explicit-integration stability).

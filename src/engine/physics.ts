@@ -27,7 +27,11 @@ export const groups = (member: number, filter: number): number => ((member & 0xf
 export const G_FIELD = groups(GRP.field, 0xffff);
 export const G_OBJ = groups(GRP.obj, 0xffff);
 export const G_STACKED = groups(GRP.stacked, GRP.obj | GRP.robotsAll);
-export const G_HELD = groups(GRP.obj, GRP.obj | GRP.detent);
+/**
+ * Held pieces are moved kinematically (infinite force), so they only touch Toggles/Rollers: pressing a held
+ * piece into a loose one would launch it.
+ */
+export const G_HELD = groups(GRP.obj, GRP.detent);
 export const G_NONE = groups(0, 0);
 export const G_DETENT = groups(GRP.detent, 0xffff & ~GRP.field);
 /** The lift's effector collider only pushes Toggles/Rollers; it must never lever the chassis off goals or pieces. */

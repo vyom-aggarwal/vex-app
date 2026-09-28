@@ -2,7 +2,7 @@ import { effectorSlots, storageCapacity } from '../engine/mechanism';
 import { Session, type Controller, type Toast } from '../engine/session';
 import type { GameDefinition, ScoreResult, ViolationCall } from '../engine/types';
 import { InputManager, type UiAction } from '../shared/input/input';
-import { mapDriverInput } from '../shared/input/mapping';
+import { KeyRamp, mapDriverInput } from '../shared/input/mapping';
 import { formatClock, type Phase } from '../shared/matchTimer';
 import type { Replay } from '../shared/replay';
 import { FixedTimestep, TICK_HZ } from '../shared/timestep';
@@ -64,6 +64,8 @@ export class GameRunner {
   private renderer: ZRenderer;
   private input: InputManager;
   private clock = new FixedTimestep();
+  private ramp = new KeyRamp();
+  private frameDt = 1 / 60;
   private prev: Float32Array;
   private cur: Float32Array;
   private raf = 0;
@@ -234,7 +236,8 @@ export class GameRunner {
   private playerCommand(): RobotCommand | null {
     const sim = this.session.sim;
     if (this.session.controllers[0] || this.modeId === 'solocode') return null;
-    return mapDriverInput(this.input.readPad(), this.input.readKeys(), this.settings, sim.specs[0].drive.type, sim.state.robots[0].alliance);
+    const keys = this.ramp.apply(this.input.readKeys(), this.frameDt);
+    return mapDriverInput(this.input.readPad(), keys, this.settings, sim.specs[0].drive.type, sim.state.robots[0].alliance);
   }
 
   private step(cmd: RobotCommand | null): void {
@@ -285,6 +288,7 @@ export class GameRunner {
   private frame(now: number): void {
     const dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
+    this.frameDt = dt;
     this.input.poll();
     for (const a of this.input.takeActions()) this.handle(a);
     const sim = this.session.sim;

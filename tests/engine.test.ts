@@ -206,3 +206,15 @@ test('Robots never leave the tiles and pieces never get launched', async () => {
     }
   }
 });
+
+test('Keyboard ramp: presses ramp in, releases are instant, reversals restart', async () => {
+  const { KeyRamp, NO_BUTTONS } = await import('../src/shared/input/mapping');
+  const r = new KeyRamp(8);
+  const k = (fwd: number) => ({ ...NO_BUTTONS, fwd, strafe: 0, turn: 0 });
+  near(r.apply(k(1), 1 / 60).fwd, 8 / 60, 1e-9, 'first frame');
+  for (let i = 0; i < 10; i++) r.apply(k(1), 1 / 60);
+  eq(r.apply(k(1), 1 / 60).fwd, 1, 'full after ~0.12 s');
+  eq(r.apply(k(0), 1 / 60).fwd, 0, 'instant release');
+  r.apply(k(1), 0.2);
+  near(r.apply(k(-1), 1 / 60).fwd, -8 / 60, 1e-9, 'reversal restarts from zero');
+});

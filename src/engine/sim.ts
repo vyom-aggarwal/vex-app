@@ -192,6 +192,8 @@ export const BREAK_SPEED = 0.8;
 const HOLD_LIFT = 0.35;
 /** Contact tolerance for rule/touch detection (m, ≈0.15 in). */
 const TOUCH_SLOP = 0.004;
+/** m/s */
+const MAX_PIECE_SPEED = 3;
 /** Detent spring as a velocity blend (stable for light bodies): ω → gain·(target − angle). */
 const DETENT_GAIN = 10;
 const DETENT_BLEND = 0.25;
@@ -249,6 +251,8 @@ export class Sim {
 
     this.world = new RAPIER.World({ x: 0, y: 0, z: -9.81 });
     this.world.timestep = DT;
+    // More iterations keep light pieces pinched between a robot and a wall from being spat out.
+    this.world.numSolverIterations = 8;
     this.state = {
       tick: 0,
       rng: opts.seed | 0,
@@ -352,7 +356,7 @@ export class Sim {
     const parts = kind === 'pin' ? pinParts() : cupParts();
     const mass = (kind === 'pin' ? PIN.massKg : CUP.massKg) / parts.length;
     for (const p of parts) {
-      const d = RAPIER.ColliderDesc.convexHull(p)!.setMass(mass).setFriction(0.55).setRestitution(0.05).setCollisionGroups(G_OBJ);
+      const d = RAPIER.ColliderDesc.convexHull(p)!.setMass(mass).setFriction(0.55).setRestitution(0).setRestitutionCombineRule(RAPIER.CoefficientCombineRule.Min).setCollisionGroups(G_OBJ);
       this.addCollider(d, body, { t: 'obj', id });
     }
     return body;
@@ -1356,6 +1360,14 @@ export class Sim {
 
   private postStep(): void {
     const s = this.state;
+    // Safety net against solver blow-ups: no loose piece moves faster than a thrown one could.
+    for (const o of s.objects) {
+      if (o.loc !== 'field') continue;
+      const b = this.body(o.body);
+      const v = b.linvel();
+      const sp = Math.hypot(v.x, v.y, v.z);
+      if (sp > MAX_PIECE_SPEED) b.setLinvel({ x: (v.x / sp) * MAX_PIECE_SPEED, y: (v.y / sp) * MAX_PIECE_SPEED, z: (v.z / sp) * MAX_PIECE_SPEED }, true);
+    }
 
     const facts: RobotFacts[] = [];
     const struck: { goal: string; level: number; robot: number }[] = [];
