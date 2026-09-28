@@ -79,6 +79,8 @@ export class ZRenderer {
   private ambientAngle = 0.6;
   private highlight: THREE.Box3Helper | null = null;
   private highlightColor = 0xa6e35a;
+  private okColor = 0x3fcf8e;
+  private warnColor = 0xf5b53d;
   private goalRing: THREE.Mesh;
   private grabRing: THREE.Mesh;
   private dropLine: THREE.Mesh;
@@ -295,7 +297,7 @@ export class ZRenderer {
     this.goalRing.visible = !!gr;
     if (gr) {
       this.goalRing.position.set(gr.x, gr.y, gr.z + 0.004);
-      (this.goalRing.material as THREE.MeshBasicMaterial).color.setHex(gr.ok ? 0x3fdc7f : 0xf2a93b);
+      (this.goalRing.material as THREE.MeshBasicMaterial).color.setHex(gr.ok ? this.okColor : this.warnColor);
       this.goalRing.scale.setScalar(gr.ok ? 1.12 : 1);
     }
     const d = g?.drop;
@@ -449,7 +451,7 @@ export class ZRenderer {
     const F = inToM(envelope.footprint);
     const env = new THREE.LineSegments(
       new THREE.EdgesGeometry(new THREE.BoxGeometry(F, F, H)),
-      new THREE.LineBasicMaterial({ color: envelope.height === null ? 0x6aa6ff : 0xf2c230, transparent: true, opacity: 0.45 }),
+      new THREE.LineBasicMaterial({ color: 0x9aa3ad, transparent: true, opacity: envelope.height === null ? 0.25 : 0.5 }),
     );
     env.position.z = H / 2;
     g.add(env);
@@ -525,12 +527,15 @@ export class ZRenderer {
   // -------------------------------------------------------------------------------------------
 
   /** Take alliance / yellow / background / accent colors from the UI tokens. Applies to meshes built afterwards. */
-  setPalette(p: { red: number; blue: number; yellow: number; bg: number; accent: number }): void {
+  setPalette(p: { red: number; blue: number; yellow: number; bg: number; accent: number; ok: number; warn: number }): void {
     COLORS.red = p.red;
     COLORS.blue = p.blue;
     COLORS.yellow = p.yellow;
     COLORS.bg = p.bg;
     this.highlightColor = p.accent;
+    this.okColor = p.ok;
+    this.warnColor = p.warn;
+    (this.grabRing.material as THREE.MeshBasicMaterial).color.setHex(p.accent);
     this.scene.background = new THREE.Color(p.bg);
     if (this.scene.fog) this.scene.fog = new THREE.Fog(p.bg, 9, 26);
   }

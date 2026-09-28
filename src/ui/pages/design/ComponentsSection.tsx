@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   Checkbox,
+  ChoiceList,
   Chip,
   Dialog,
   Divider,
@@ -21,6 +22,8 @@ import {
   Slider,
   Spinner,
   StatRow,
+  Stepper,
+  Swatches,
   Tabs,
   TextInput,
   ToastCard,
@@ -74,6 +77,9 @@ export function ComponentsSection() {
   const [stat, setStat] = useState(4.6);
   const [loading, setLoading] = useState(false);
   const [card, setCard] = useState(1);
+  const [count, setCount] = useState(2);
+  const [lift, setLift] = useState<'arm' | 'dr4b' | 'stack'>('dr4b');
+  const [paint, setPaint] = useState<number | null>(null);
 
   return (
     <>
@@ -280,6 +286,25 @@ export function ComponentsSection() {
             <State label="disabled">
               <Select label="Disabled" value="a" disabled onChange={() => {}} options={[{ value: 'a', label: 'Unavailable' }]} />
             </State>
+          </div>
+        </Demo>
+        <Demo title="Stepper, choice list, swatches" note="Choice rows carry a one-line description. Swatch colors are robot paint, not UI colors.">
+          <div className="dg-block">
+            <div className="dg-row">
+              <Stepper label="Motors" value={count} min={0} max={4} onChange={setCount} unit={(n) => (n === 1 ? 'motor' : 'motors')} />
+              <Stepper label="Disabled at max" value={4} min={0} max={4} onChange={() => {}} />
+            </div>
+            <ChoiceList
+              label="Lift type"
+              value={lift}
+              onChange={setLift}
+              options={[
+                { value: 'arm', title: 'Single arm', desc: 'Fast and simple; the claw swings forward as it rises.' },
+                { value: 'dr4b', title: 'Double reverse 4-bar', desc: 'Straight up, compact when down.' },
+                { value: 'stack', title: 'Stack gripper', desc: 'Carries a whole stack.', disabled: true, badge: 'Pinnacle only' },
+              ]}
+            />
+            <Swatches label="Paint" autoLabel="Alliance" value={paint} colors={[0x9aa3ad, 0x5d646d, 0x2b2f36, 0xd9dde2]} onChange={setPaint} />
           </div>
         </Demo>
         <Demo title="Text input">

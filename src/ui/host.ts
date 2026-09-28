@@ -27,6 +27,8 @@ export function applyPalette(r: ZRenderer): void {
     yellow: tokenHex('--yellow', 0xf2c230),
     bg: tokenHex('--bg-0', 0x0b0d10),
     accent: tokenHex('--accent', 0xa6e35a),
+    ok: tokenHex('--ok', 0x3fcf8e),
+    warn: tokenHex('--warn', 0xf5b53d),
   });
 }
 

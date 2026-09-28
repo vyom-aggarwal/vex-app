@@ -5,7 +5,7 @@
 - [x] U1 tokens (dark, light, colorblind), Inter, icons, /design
 - [x] U2 components with every state on /design
 - [x] U3 shell, Home hub, Mode select, Settings
-- [ ] U4 Robot builder
+- [x] U4 Robot builder
 - [ ] U5 HUD, pause, toasts, Results
 - [ ] U6 Records, replay viewer, states, sounds, reduced motion, gamepad audit
 
@@ -35,6 +35,9 @@
 - Settings nav adds "Audio" to the six listed sections (sounds had no other home). Match setup (alliance, start,
   bots, referee) moved into the Mode select side panel.
 - Home card shortcuts: Play P / Start, Configure C / X, Records R / Y.
+- Builder: presets load as a copy into My Robot (never edited); Save updates the saved robot it came from, Save as
+  new makes another. Unsaved My Robot asks before a load. Hovering/focusing a group outlines that part (Box3 helper).
+- Legality messages (engine/legality.ts) now name the fix ("Drivetrain is 66 W; cap is 55 W. …").
 - Legacy screens still being migrated are wrapped in .zd-legacy (legacy.css, tokens only; deleted in U6).
 
 ## Open TODOs

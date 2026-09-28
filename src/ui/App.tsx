@@ -15,8 +15,8 @@ import { DesignPage } from './pages/design/DesignPage';
 import { HomePage } from './pages/HomePage';
 import { ModeSelectPage } from './pages/ModeSelectPage';
 import { RecordsPage } from './pages/RecordsPage';
+import { RobotPage } from './pages/RobotPage';
 import { SETTINGS_SECTIONS, SettingsPage } from './pages/SettingsPage';
-import { RobotSection } from './pages/configure/RobotSection';
 import { resolveQuality } from './quality';
 import { loadDraft } from './robots';
 import { navigate, restoreView } from './router';
@@ -219,12 +219,7 @@ export function App() {
     );
   else if (page === 'robot')
     content = (
-      <>
-        <PageHeader title="Robot" eyebrow={def.name} parent={`/${game}`} />
-        <div className="zd-legacy">
-          <RobotSection key={def.id} def={def} settings={settings} setSettings={setSettings} />
-        </div>
-      </>
+      <RobotPage key={def.id} def={def} settings={settings} />
     );
   else if (page === 'records')
     content = (

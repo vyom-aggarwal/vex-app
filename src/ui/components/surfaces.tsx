@@ -166,7 +166,18 @@ export function Group({
   const open = openProp ?? own;
   const id = useId();
   return (
-    <section className="zd-group" onMouseEnter={onHover && (() => onHover(true))} onMouseLeave={onHover && (() => onHover(false))}>
+    <section
+      className="zd-group"
+      onMouseEnter={onHover && (() => onHover(true))}
+      onMouseLeave={onHover && (() => onHover(false))}
+      onFocus={onHover && (() => onHover(true))}
+      onBlur={
+        onHover &&
+        ((e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) onHover(false);
+        })
+      }
+    >
       <button
         type="button"
         className="zd-group-head"
@@ -176,8 +187,6 @@ export function Group({
           setOwn(!open);
           onToggle?.(!open);
         }}
-        onFocus={onHover && (() => onHover(true))}
-        onBlur={onHover && (() => onHover(false))}
       >
         <span className="zd-group-titles">
           <span className="zd-group-title">{title}</span>

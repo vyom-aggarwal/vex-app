@@ -412,3 +412,98 @@ export function Select<T extends string | number>({ value, options, onChange, la
     </div>
   );
 }
+
+/** Numeric stepper: − value + (arrow keys step too). */
+export function Stepper({ value, min, max, onChange, label, unit }: { value: number; min: number; max: number; onChange: (v: number) => void; label: string; unit?: (v: number) => string }) {
+  return (
+    <div
+      className="zd-stepper"
+      role="group"
+      aria-label={label}
+      onKeyDown={(e) => {
+        const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+        if (!d) return;
+        e.preventDefault();
+        onChange(Math.min(max, Math.max(min, value + d)));
+      }}
+    >
+      <button type="button" aria-label={`Decrease ${label}`} disabled={value <= min} onClick={() => onChange(Math.max(min, value - 1))}>
+        <Icon name="minus" size="var(--icon-sm)" />
+      </button>
+      <output className="zd-num" aria-live="polite">
+        {value}
+        {unit && <span className="zd-stepper-unit">{unit(value)}</span>}
+      </output>
+      <button type="button" aria-label={`Increase ${label}`} disabled={value >= max} onClick={() => onChange(Math.min(max, value + 1))}>
+        <Icon name="plus" size="var(--icon-sm)" />
+      </button>
+    </div>
+  );
+}
+
+/** A list of radio rows with a title and one-line description (e.g. lift types). */
+export function ChoiceList<T extends string>({
+  value,
+  options,
+  onChange,
+  label,
+}: {
+  value: T;
+  options: { value: T; title: string; desc: string; disabled?: boolean; badge?: string }[];
+  onChange: (v: T) => void;
+  label: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  return (
+    <div
+      ref={ref}
+      className="zd-choices"
+      role="radiogroup"
+      aria-label={label}
+      onKeyDown={(e) => {
+        const next = arrowStep(e, options, value, 'y');
+        if (next === null) return;
+        e.preventDefault();
+        onChange(next);
+        (ref.current?.children[options.findIndex((o) => o.value === next)] as HTMLElement | undefined)?.focus();
+      }}
+    >
+      {options.map((o) => {
+        const on = o.value === value;
+        return (
+          <button key={o.value} type="button" role="radio" aria-checked={on} tabIndex={on ? 0 : -1} disabled={o.disabled} className="zd-choice" onClick={() => onChange(o.value)}>
+            <span className="zd-choice-mark" aria-hidden="true">
+              {on && <Icon name="check" size="var(--icon-sm)" />}
+            </span>
+            <span className="zd-choice-text">
+              <span className="zd-choice-title">
+                {o.title}
+                {o.badge && <span className="zd-badge">{o.badge}</span>}
+              </span>
+              <span className="zd-choice-desc">{o.desc}</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Color swatches for robot paint (the colors are robot data, not UI colors). */
+export function Swatches({ value, colors, onChange, label, autoLabel }: { value: number | null; colors: number[]; onChange: (v: number | null) => void; label: string; autoLabel?: string }) {
+  const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
+  return (
+    <div className="zd-swatches" role="radiogroup" aria-label={label}>
+      {autoLabel && (
+        <button type="button" role="radio" aria-checked={value === null} className="zd-swatch is-auto" onClick={() => onChange(null)}>
+          {autoLabel}
+        </button>
+      )}
+      {colors.map((c) => (
+        <button key={c} type="button" role="radio" aria-checked={value === c} aria-label={hex(c)} title={hex(c)} className="zd-swatch" style={{ background: hex(c) }} onClick={() => onChange(c)}>
+          {value === c && <Icon name="check" size="var(--icon-sm)" />}
+        </button>
+      ))}
+    </div>
+  );
+}

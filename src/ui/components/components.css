@@ -1306,3 +1306,159 @@ button.zd-chip.is-press {
   color: var(--text-1);
   background: var(--bg-2);
 }
+
+/* ---------------------------------------------------------------- Stepper, choice list, swatches */
+.zd-stepper {
+  display: inline-flex;
+  align-items: center;
+  height: var(--control-md);
+  border: var(--hairline) solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--bg-1);
+}
+.zd-stepper > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-md);
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.zd-stepper > button:hover:not(:disabled) {
+  background: var(--bg-3);
+  color: var(--text-1);
+}
+.zd-stepper > button:active:not(:disabled) .zd-icon {
+  transform: scale(0.85);
+}
+.zd-stepper > button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.zd-stepper > button:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+.zd-stepper > button:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.zd-stepper output {
+  min-width: 5ch;
+  padding: 0 var(--space-2);
+  text-align: center;
+  font-weight: var(--fw-semibold);
+}
+.zd-stepper-unit {
+  margin-left: var(--space-1);
+  color: var(--text-3);
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-13);
+}
+.zd-choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.zd-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--control-md);
+  padding: var(--space-2) var(--space-3);
+  border: var(--hairline) solid var(--line-1);
+  border-radius: var(--radius-sm);
+  background: var(--bg-1);
+  color: var(--text-1);
+  text-align: left;
+  cursor: pointer;
+}
+.zd-choice:hover:not(:disabled) {
+  background: var(--bg-2);
+  border-color: var(--line-2);
+}
+.zd-choice:active:not(:disabled) {
+  background: var(--bg-3);
+  transform: scale(0.995);
+}
+.zd-choice[aria-checked='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.zd-choice:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.zd-choice-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 1px;
+  border: var(--stroke) solid var(--line-2);
+  border-radius: var(--radius-pill);
+  color: var(--accent-text);
+}
+.zd-choice[aria-checked='true'] .zd-choice-mark {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.zd-choice-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.zd-choice-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--fw-medium);
+}
+.zd-choice-desc {
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+.zd-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.zd-swatch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-md);
+  height: var(--control-md);
+  border: var(--hairline) solid var(--line-2);
+  border-radius: var(--radius-sm);
+  color: var(--text-1);
+  cursor: pointer;
+}
+.zd-swatch .zd-icon {
+  padding: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-0);
+  box-sizing: content-box;
+}
+.zd-swatch:hover {
+  transform: scale(1.05);
+}
+.zd-swatch:active {
+  transform: scale(0.95);
+}
+.zd-swatch[aria-checked='true'] {
+  outline: var(--stroke) solid var(--text-1);
+  outline-offset: 2px;
+}
+.zd-swatch.is-auto {
+  width: auto;
+  padding: 0 var(--space-3);
+  background: var(--bg-1);
+  font-size: var(--fs-13);
+  font-weight: var(--fw-medium);
+}
