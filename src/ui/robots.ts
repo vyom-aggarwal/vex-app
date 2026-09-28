@@ -54,9 +54,13 @@ export function loadDraft(g: GameId): RobotSpec {
     const dr = d.drive;
     const oldStarter =
       dr.type === 'tank' && dr.wheelsPerSide === 2 && dr.wheelDia === 4 && dr.cartridge === 200 && dr.ratio === 1 && dr.omni.slice(0, 2).every((o) => o);
-    if (oldStarter && d.lift.type === 'arm' && d.effector.type === 'claw') {
-      d.drive.omni = [true, false, true, true];
-      saveDraft(d);
+    const flag = `draftV2:${g}`;
+    if (!loadJson<boolean>(flag, false)) {
+      saveJson(flag, true); // run once, so a later deliberate all-omni choice is kept
+      if (oldStarter && d.lift.type === 'arm' && d.effector.type === 'claw') {
+        d.drive.omni = [true, false, true, true];
+        saveDraft(d);
+      }
     }
     return d;
   }
