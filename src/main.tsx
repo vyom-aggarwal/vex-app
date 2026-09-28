@@ -6,9 +6,12 @@ import './ui/tokens.css';
 import './ui/components/components.css';
 import './ui/screens.css';
 import { App } from './ui/App';
+import { ToastProvider } from './ui/components';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ToastProvider>
+      <App />
+    </ToastProvider>
   </StrictMode>,
 );

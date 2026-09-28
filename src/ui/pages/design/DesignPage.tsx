@@ -1,5 +1,6 @@
 import type { Settings } from '../../settings';
 import { SegmentedControl } from '../../components';
+import { ComponentsSection } from './ComponentsSection';
 import { TokensSection } from './TokensSection';
 
 /** /design: the whole design system on one page. Not linked from the main navigation. */
@@ -33,6 +34,7 @@ export function DesignPage({ settings, setSettings }: { settings: Settings; setS
         </div>
       </header>
       <TokensSection />
+      <ComponentsSection />
     </div>
   );
 }

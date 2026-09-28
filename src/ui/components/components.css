@@ -1237,3 +1237,72 @@ button.zd-chip:hover .zd-chip-x {
     transform: translateY(var(--motion-distance));
   }
 }
+
+/* ---------------------------------------------------------------- Forced states (style guide only) */
+.is-focus {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+.zd-btn--primary.is-hover {
+  background: var(--accent-hover);
+}
+.zd-btn--primary.is-press {
+  background: var(--accent-press);
+  transform: scale(0.98);
+}
+.zd-btn--secondary.is-hover {
+  background: var(--bg-3);
+}
+.zd-btn--secondary.is-press {
+  background: var(--bg-3);
+  border-color: var(--text-3);
+  transform: scale(0.98);
+}
+.zd-btn--ghost.is-hover {
+  background: var(--bg-3);
+  color: var(--text-1);
+}
+.zd-btn--ghost.is-press {
+  background: var(--line-2);
+  color: var(--text-1);
+  transform: scale(0.98);
+}
+.zd-btn--danger.is-hover {
+  opacity: 0.9;
+}
+.zd-btn--danger.is-press {
+  opacity: 0.8;
+  transform: scale(0.98);
+}
+.zd-card--interactive.is-hover {
+  background: var(--bg-2);
+  border-color: var(--line-2);
+}
+.zd-card--interactive.is-press {
+  background: var(--bg-3);
+  transform: scale(0.99);
+}
+button.zd-chip.is-hover {
+  background: var(--bg-3);
+  color: var(--text-1);
+}
+button.zd-chip.is-press {
+  transform: scale(0.97);
+}
+.zd-input.is-hover,
+.zd-select-trigger.is-hover {
+  border-color: var(--text-3);
+}
+.is-hover .zd-toggle-track {
+  border-color: var(--text-3);
+}
+.is-press .zd-toggle-knob {
+  transform: scale(0.9);
+}
+.is-press[aria-checked='true'] .zd-toggle-knob {
+  transform: translateX(1rem) scale(0.9);
+}
+.zd-seg > button.is-hover {
+  color: var(--text-1);
+  background: var(--bg-2);
+}
