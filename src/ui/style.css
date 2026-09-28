@@ -1166,10 +1166,24 @@ label.file {
   font-size: 0.82rem;
   z-index: 2;
 }
+.hp-title {
+  background: none;
+  border: none;
+  padding: 0;
+  justify-content: flex-start;
+  text-align: left;
+  font-size: 0.85rem;
+}
+.hp-title:hover:not(:disabled) {
+  background: none;
+}
 .hp-title small {
   display: block;
   color: var(--faint);
   font-size: 0.72rem;
+}
+.hp-panel.closed {
+  width: auto;
 }
 .hp-row {
   display: flex;
@@ -1570,11 +1584,11 @@ label.file {
     font-size: 2.6rem;
   }
   .hp-panel {
-    top: auto;
-    bottom: 96px;
+    top: 58px;
     width: auto;
-    left: 12px;
+    left: auto;
     right: 12px;
+    max-width: calc(100% - 24px);
   }
   .hud-bl {
     display: none;

@@ -15,8 +15,7 @@ export function makeSpec(game: GameId, id: string, name: string, o: Partial2<Rob
       type: 'tank',
       wheelsPerSide: 2,
       wheelDia: 4,
-      // Omni front, traction back: turns cleanly without sliding sideways in arcs.
-      omni: [true, false, true, true],
+      omni: [true, true, true, true],
       cartridge: 200,
       ratio: 1,
       motorsPerSide: [11, 11],

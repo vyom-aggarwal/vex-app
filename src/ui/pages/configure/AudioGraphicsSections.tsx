@@ -52,6 +52,9 @@ export function AudioSection({ settings, setSettings }: { settings: Settings; se
             ]}
           />
         </Field>
+        <Field label="Placement guides" hint="Goal rim turns green when releasing now would score; the piece your claw would grab is ringed">
+          <Switch checked={settings.guides} onChange={(v) => set('guides', v)} />
+        </Field>
         <Field label="In-match messages" hint="Rule calls and loader messages as toasts">
           <Switch checked={settings.messages} onChange={(v) => set('messages', v)} />
         </Field>

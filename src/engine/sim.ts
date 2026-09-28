@@ -158,6 +158,8 @@ export interface SimState {
   loaders: LoaderState[];
   detents: DetentState[];
   hpCooldown: Record<Alliance, number>;
+  /** goalId → [robot, until tick]: a robot that just placed on a goal can't knock that stack over for a moment. */
+  grace: Record<string, [number, number]>;
   ref: RefState;
   auton: AutonResult | null;
   final: ScoreResult | null;
@@ -267,6 +269,7 @@ export class Sim {
       ref: newRefState(),
       auton: null,
       final: null,
+      grace: {},
     };
     this.buildField();
     this.buildObjects();
@@ -446,7 +449,9 @@ export class Sim {
       this.addCollider(
         RAPIER.ColliderDesc.cuboid(hL, hW, baseH / 2)
           .setTranslation(0, 0, inToM(CLEARANCE) + baseH / 2)
-          .setMass(model.mass * 0.85)
+          // All mass lives on the chassis so the center of mass is exactly the chassis center: the wheel
+          // model computes wheel velocities about this point (an off-center COM made robots crab when turning).
+          .setMass(model.mass)
           .setFriction(0)
           .setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min)
           .setCollisionGroups(grp),
@@ -458,7 +463,7 @@ export class Sim {
         this.addCollider(
           RAPIER.ColliderDesc.cuboid(hL * 0.55, hW * 0.7, inToM(towerH / 2))
             .setTranslation(-hL * 0.35, 0, inToM(CHASSIS_BASE + towerH / 2))
-            .setMass(model.mass * 0.15)
+            .setMass(0)
             .setFriction(0)
             .setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min)
             .setCollisionGroups(grp),
@@ -470,7 +475,7 @@ export class Sim {
       const plate = this.addCollider(
         RAPIER.ColliderDesc.cuboid(inToM(0.4), inToM(2.4), inToM(1.3))
           .setTranslation(inToM(e0.x - 2.6), 0, inToM(e0.z))
-          .setMass(0.01)
+          .setMass(0)
           .setFriction(0)
           .setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min)
           .setCollisionGroups(robotPlateGroups(i)),
@@ -759,6 +764,14 @@ export class Sim {
       if (r.slots[k] >= 0) this.release(r, k);
       else this.grab(r, k, want);
     }
+    // Auto lift height: near a goal with a piece, rise to the drop height; near a loose piece, lower to it.
+    if (cmd.assists & ASSIST.autoLift && cmd.lift === 0) {
+      const want = this.autoLiftTarget(r);
+      if (want !== null) {
+        const rate = liftRate(spec) * DT;
+        r.lift = Math.abs(want - r.lift) <= rate ? want : r.lift + Math.sign(want - r.lift) * rate;
+      }
+    }
     // Auto-grab / auto-place assists.
     if (cmd.assists & ASSIST.autoGrab && r.grabCooldown === 0) {
       r.slots.forEach((id, k) => {
@@ -771,7 +784,9 @@ export class Sim {
     }
     if (cmd.assists & ASSIST.autoPlace) {
       r.slots.forEach((id, k) => {
-        if (id >= 0 && this.nestTarget(id, this.heldPose(r, k).pos)) this.release(r, k);
+        // Only drop when nearly stopped, so the piece is set down rather than flung.
+        const rp = this.robotPose(r.index);
+        if (id >= 0 && Math.hypot(rp.vx, rp.vy) < 0.4 && Math.abs(rp.w) < 1.5 && this.nestTarget(id, this.heldPose(r, k).pos)) this.release(r, k);
       });
     }
 
@@ -784,6 +799,85 @@ export class Sim {
     if (r.toolTicks > 0) r.toolTicks--;
     const helper = (cmd.assists & ASSIST.toolHelper) !== 0;
     if ((pressed(BTN.tool) || helper) && r.toolTicks === 0) this.useTool(r, !pressed(BTN.tool));
+  }
+
+  /**
+   * Driver guides for robot i (meters): where a held piece is and which goal it would nest in if released
+   * now (ok) or which compatible goal is close (not ok yet), or which loose piece a grab would take.
+   */
+  guide(i: number): { goal: { x: number; y: number; z: number; ok: boolean } | null; drop: Vec3 | null; grab: Vec3 | null } {
+    const r = this.state.robots[i];
+    if (!r) return { goal: null, drop: null, grab: null };
+    const k = r.slots.findIndex((x) => x >= 0);
+    if (k >= 0) {
+      const id = r.slots[k];
+      const pose = this.heldPose(r, k);
+      const hit = this.nestTarget(id, pose.pos);
+      const kind = this.obj(id).kind;
+      const drop = { x: pose.pos.x, y: pose.pos.y, z: pose.pos.z - inToM(halfOf(kind)) };
+      let goal: GoalDef | undefined = hit ? this.goalById.get(hit) : undefined;
+      if (!goal) {
+        let best = inToM(20);
+        for (const g of this.game.field.goals) {
+          if (this.game.bots.forbiddenGoals(r.alliance).includes(g.id)) continue;
+          const top = stackTop(g.height, this.state.stacks.find((s) => s.goalId === g.id)!.levels);
+          const d = Math.hypot(inToM(g.x) - pose.pos.x, inToM(g.y) - pose.pos.y);
+          if (top.accepts === kind && d < best) {
+            best = d;
+            goal = g;
+          }
+        }
+      }
+      if (!goal) return { goal: null, drop, grab: null };
+      const top = stackTop(goal.height, this.state.stacks.find((s) => s.goalId === goal!.id)!.levels);
+      return { goal: { x: inToM(goal.x), y: inToM(goal.y), z: inToM(top.z), ok: !!hit }, drop, grab: null };
+    }
+    const slots = effectorSlots(this.specs[i]);
+    for (let s = 0; s < slots.length; s++) {
+      const c = this.captureCandidate(r, s, null);
+      if (c !== null) return { goal: null, drop: null, grab: this.objPos(c) };
+    }
+    return { goal: null, drop: null, grab: null };
+  }
+
+  /** Lift position that puts a held piece just above the nearest compatible goal (or the claw at a nearby loose piece). */
+  private autoLiftTarget(r: RobotState): number | null {
+    const spec = this.specs[r.index];
+    if (liftRate(spec) === 0) return null;
+    const e = effectorPoint(spec, r.lift);
+    const ep = this.robotPoint(r.index, e.x, 0, e.z);
+    const k = r.slots.findIndex((x) => x >= 0);
+    let targetZ: number | null = null;
+    if (k >= 0) {
+      const kind = this.obj(r.slots[k]).kind;
+      let best = inToM(16);
+      for (const g of this.game.field.goals) {
+        if (this.game.bots.forbiddenGoals(r.alliance).includes(g.id)) continue;
+        const d = Math.hypot(inToM(g.x) - ep.x, inToM(g.y) - ep.y);
+        const top = stackTop(g.height, this.state.stacks.find((s) => s.goalId === g.id)!.levels);
+        if (d < best && top.accepts === kind) {
+          best = d;
+          // Piece bottom 1" above the rim: center = top + 1 + half; the effector sits HOLD_LIFT below it.
+          targetZ = top.z + 1 + halfOf(kind) - HOLD_LIFT;
+        }
+      }
+    } else {
+      const near = this.state.objects.some((o) => {
+        if (o.loc !== 'field') return false;
+        const t = this.objPos(o.id);
+        return Math.hypot(t.x - ep.x, t.y - ep.y) < inToM(14) && t.z < inToM(4);
+      });
+      if (near) targetZ = effectorPoint(spec, 0).z;
+    }
+    if (targetZ === null) return null;
+    let lo = 0;
+    let hi = 1;
+    for (let i = 0; i < 20; i++) {
+      const mid = (lo + hi) / 2;
+      if (effectorPoint(spec, mid).z < targetZ) lo = mid;
+      else hi = mid;
+    }
+    return (lo + hi) / 2;
   }
 
   private canActuate(r: RobotState, pneumatic: boolean): boolean {
@@ -856,12 +950,13 @@ export class Sim {
       const dx = mToIn(c * (t.x - p.x) + s * (t.y - p.y)) - e.x;
       const dy = mToIn(-s * (t.x - p.x) + c * (t.y - p.y)) - yOff;
       const dz = mToIn(t.z) - e.z;
-      if (Math.abs(dx) > 2.6 || Math.abs(dy) > 2.6 || Math.abs(dz) > 2.8) continue;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3 || Math.abs(dz) > 2.8) continue;
       if (o.loc === 'field') {
         const up = upAxis(this.objRot(o.id));
         const upright = Math.abs(up.z) > UPRIGHT_COS;
         const lying = Math.abs(up.z) < LYING_SIN;
-        if (!upright && !(lying && spec.intake.lying)) continue;
+        // Claws close on lying pieces too and right them (the end pointing away ends up on top).
+        if (!upright && !lying) continue;
       }
       const unit = o.loc === 'field' || o.loc === 'loader' ? this.unitOf(o.id) : [o.id];
       if (unit.length > maxUnitSize(spec)) continue;
@@ -1038,6 +1133,7 @@ export class Sim {
 
   /** Nest a unit (root + riders) onto a goal stack. */
   private appendUnit(goalId: string, rootId: number, robot: number | null): void {
+    if (robot !== null) this.state.grace[goalId] = [robot, this.state.tick + Math.round(0.75 * TICK_HZ)];
     for (const id of this.unitOf(rootId)) {
       const o = this.obj(id);
       this.pushLevel(goalId, o, o.zDown);
@@ -1397,13 +1493,17 @@ export class Sim {
       }
       const p = this.robotPose(i);
       const speed = Math.hypot(p.vx, p.vy);
+      const graced = (goalId: string): boolean => {
+        const gr = s.grace[goalId];
+        return !!gr && gr[0] === i && s.tick < gr[1];
+      };
       for (const id of objects) {
         const lvl = objIndex.get(id);
         const o = this.obj(id);
         if (lvl === undefined || o.loc !== 'goal') continue;
         const g = this.goalById.get(o.where)!;
         const toward = (p.vx * (inToM(g.x) - p.x) + p.vy * (inToM(g.y) - p.y)) / (Math.hypot(inToM(g.x) - p.x, inToM(g.y) - p.y) || 1);
-        if (toward > BREAK_SPEED || speed > BREAK_SPEED * 1.6) struck.push({ goal: o.where, level: lvl, robot: i });
+        if (!graced(o.where) && (toward > BREAK_SPEED || speed > BREAK_SPEED * 1.6)) struck.push({ goal: o.where, level: lvl, robot: i });
       }
       // Mechanism strike: the effector sweeping fast through a stack's column knocks it apart.
       const spec0 = this.specs[i];
@@ -1417,7 +1517,9 @@ export class Sim {
         const bottoms = levelBottoms(g.height, st.levels);
         const ez = e0.z;
         const lvl = bottoms.findIndex((b, k) => ez >= b && ez <= b + (st.levels[k].kind === 'pins' ? PIN.height : CUP.height));
-        if (lvl >= 0 && speed > BREAK_SPEED) struck.push({ goal: st.goalId, level: lvl, robot: i });
+        // Only a claw moving into the stack knocks it (not one resting around a piece it just placed).
+        const toward = (p.vx * (inToM(g.x) - ep.x) + p.vy * (inToM(g.y) - ep.y)) / (Math.hypot(inToM(g.x) - ep.x, inToM(g.y) - ep.y) || 1);
+        if (lvl >= 0 && !graced(st.goalId) && toward > BREAK_SPEED) struck.push({ goal: st.goalId, level: lvl, robot: i });
       }
       // Tool contact counts as touching the detent.
       for (const d of s.detents) if (d.forcedBy === i) touching.add(d.id);

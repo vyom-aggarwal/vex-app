@@ -68,7 +68,7 @@ export interface RobotSpec {
 // Per-tick inputs
 // ---------------------------------------------------------------------------------------------
 
-export const ASSIST = { align: 1, autoGrab: 2, autoPlace: 4, toolHelper: 8 } as const;
+export const ASSIST = { align: 1, autoGrab: 2, autoPlace: 4, toolHelper: 8, autoLift: 16 } as const;
 
 /** One robot's command for one tick. Buttons are levels; the engine does its own edge detection. */
 export interface RobotCommand {

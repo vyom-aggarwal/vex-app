@@ -32,6 +32,8 @@ export default function GameView({ game, mode, entries, settings, seed, onExit, 
   const [hud, setHud] = useState<HudState | null>(null);
   const [done, setDone] = useState<(FinishInfo & { best: boolean }) | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The human-player panel starts collapsed on narrow screens so it never hides the field.
+  const [hpOpen, setHpOpen] = useState(() => typeof window === 'undefined' || window.innerWidth > 900);
   const me = entries[0];
   /** Primary key for an action, for on-screen hints. */
   const k = (a: keyof Settings['bindings']['keys']) => (settings.bindings.keys[a][0] ? keyLabel(settings.bindings.keys[a][0]) : '—');
@@ -140,10 +142,15 @@ export default function GameView({ game, mode, entries, settings, seed, onExit, 
           </div>
 
           {hud.anyLoading && (
-            <div className="hp-panel">
-              <div className="hp-title">
-                Human player <small>{hud.canLoad ? `Supply ${hud.supply.pins} Pins · ${hud.supply.cups} Cups` : 'Loading not allowed right now'}</small>
-              </div>
+            <div className={`hp-panel${hpOpen ? '' : ' closed'}`}>
+              <button className="hp-title" onClick={() => setHpOpen(!hpOpen)} aria-expanded={hpOpen}>
+                <span>
+                  Human player {hpOpen ? '▾' : '▸'}
+                  <small>{hud.canLoad ? `Supply ${hud.supply.pins} Pins · ${hud.supply.cups} Cups · ${LOAD_LABELS[hud.loadKind]}` : 'Loading not allowed right now'}</small>
+                </span>
+              </button>
+              {hpOpen && (
+                <>
               <div className="hp-row">
                 {game.field.loaders.map((l, i) =>
                   mode.loaderAccess[me.alliance].includes(l.alliance) ? (
@@ -169,6 +176,8 @@ export default function GameView({ game, mode, entries, settings, seed, onExit, 
               <button className="primary" disabled={!hud.canLoad} onClick={act((r) => r.queueLoad())}>
                 Load ({k('load')})
               </button>
+                </>
+              )}
             </div>
           )}
 

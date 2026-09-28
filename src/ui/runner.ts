@@ -326,6 +326,7 @@ export class GameRunner {
       this.prev = this.cur.slice();
     } else if (this.hudTimer <= 0) this.renderer.syncObjects(this.worldInfo());
     this.renderer.applyPoses(this.prev, this.cur, this.paused ? 1 : this.clock.alpha);
+    this.renderer.setGuides(this.settings.guides && sim.phase !== 'post' ? sim.guide(0) : null);
     this.renderer.render(0, dt);
   }
 

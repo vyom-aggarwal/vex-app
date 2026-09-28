@@ -19,6 +19,10 @@ export interface BotSlot {
 }
 
 export interface Settings extends DriverTuning {
+  /** Settings schema version (for one-time default changes). */
+  v: number;
+  /** Show placement / grab guides in matches. */
+  guides: boolean;
   // Controls
   bindings: Bindings;
   triggerThreshold: number;
@@ -46,8 +50,12 @@ export interface Settings extends DriverTuning {
   quality: QualitySetting;
 }
 
+export const SETTINGS_VERSION = 3;
+
 export const DEFAULT_SETTINGS: Settings = {
   ...DEFAULT_TUNING,
+  v: SETTINGS_VERSION,
+  guides: true,
   bindings: normalizeBindings(undefined),
   triggerThreshold: 0.35,
   alliance: 'red',
@@ -86,8 +94,13 @@ function slot(v: unknown, d: BotSlot): BotSlot {
 export function loadSettings(): Settings {
   const raw = loadJson<Partial<Settings> & Record<string, unknown>>('settings', {});
   const d = DEFAULT_SETTINGS;
+  // Settings saved before v3 predate auto-place/auto-lift being on by default: switch them on once.
+  const old = typeof raw.v !== 'number' || raw.v < 3;
   return {
     ...d,
+    v: SETTINGS_VERSION,
+    guides: typeof raw.guides === 'boolean' ? raw.guides : d.guides,
+    assistLift: old || typeof raw.assistLift !== 'boolean' ? d.assistLift : raw.assistLift,
     driveMode: oneOf(raw.driveMode, ['tank', 'arcade', 'split'] as const, d.driveMode),
     deadzone: typeof raw.deadzone === 'number' ? Math.min(0.4, Math.max(0, raw.deadzone)) : d.deadzone,
     curve: typeof raw.curve === 'number' ? Math.min(3, Math.max(1, raw.curve)) : raw.curve === 'cubic' ? 3 : d.curve,
@@ -95,7 +108,7 @@ export function loadSettings(): Settings {
     fieldCentric: typeof raw.fieldCentric === 'boolean' ? raw.fieldCentric : d.fieldCentric,
     assistAlign: typeof raw.assistAlign === 'boolean' ? raw.assistAlign : d.assistAlign,
     assistGrab: typeof raw.assistGrab === 'boolean' ? raw.assistGrab : d.assistGrab,
-    assistPlace: typeof raw.assistPlace === 'boolean' ? raw.assistPlace : d.assistPlace,
+    assistPlace: old || typeof raw.assistPlace !== 'boolean' ? d.assistPlace : raw.assistPlace,
     assistTool: typeof raw.assistTool === 'boolean' ? raw.assistTool : d.assistTool,
     keyTurn: typeof raw.keyTurn === 'number' ? Math.min(1, Math.max(0.3, raw.keyTurn)) : d.keyTurn,
     bindings: normalizeBindings(raw.bindings as Partial<Bindings> | undefined),

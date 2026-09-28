@@ -17,6 +17,8 @@ export interface DriverTuning {
   assistGrab: boolean;
   assistPlace: boolean;
   assistTool: boolean;
+  /** Raise/lower the lift automatically near goals and pieces. */
+  assistLift: boolean;
   /** Keyboard turn power (0..1) when turning in place; arcs use 60% of this while driving. */
   keyTurn: number;
 }
@@ -29,7 +31,8 @@ export const DEFAULT_TUNING: DriverTuning = {
   fieldCentric: false,
   assistAlign: true,
   assistGrab: false,
-  assistPlace: false,
+  assistPlace: true,
+  assistLift: true,
   assistTool: false,
   keyTurn: 0.7,
 };
@@ -97,7 +100,8 @@ export function assistMask(t: DriverTuning): number {
     (t.assistAlign ? ASSIST.align : 0) |
     (t.assistGrab ? ASSIST.autoGrab : 0) |
     (t.assistPlace ? ASSIST.autoPlace : 0) |
-    (t.assistTool ? ASSIST.toolHelper : 0)
+    (t.assistTool ? ASSIST.toolHelper : 0) |
+    (t.assistLift ? ASSIST.autoLift : 0)
   );
 }
 

@@ -35,9 +35,10 @@ export const GOAL = {
 
 /**
  * Horizontal distance (in) from an opening's axis within which a released piece snaps in. EST: the Pin tip
- * (Ø1.40) tapers up to Ø2.35, and the opening is Ø2.37, so a tip landing up to ~0.9" off-center funnels in.
+ * (Ø1.40) tapers up to Ø2.35 and the opening (Ø2.37) has a chamfered rim, so a piece landing up to ~1.25"
+ * off-center is guided in.
  */
-export const SNAP_RADIUS = 0.9;
+export const SNAP_RADIUS = 1.25;
 /** Vertical window above the stack top in which a descending piece may snap (in). EST. */
 export const SNAP_ABOVE = 3.5;
 export const SNAP_BELOW = 1.2;

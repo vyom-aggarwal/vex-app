@@ -458,6 +458,9 @@ export function RobotSection({ def, settings, setSettings }: { def: GameDefiniti
           <Field label="Goal auto-align" hint="Hold the align button to line the claw up with the nearest goal or piece">
             <Switch checked={settings.assistAlign} onChange={(v) => set('assistAlign', v)} />
           </Field>
+          <Field label="Auto lift height" hint="Near a goal the lift rises to drop height; near a loose piece it lowers to grab">
+            <Switch checked={settings.assistLift} onChange={(v) => set('assistLift', v)} />
+          </Field>
           <Field label="Auto-grab">
             <Switch checked={settings.assistGrab} onChange={(v) => set('assistGrab', v)} />
           </Field>

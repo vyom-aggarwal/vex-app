@@ -50,15 +50,14 @@ export function deleteRobot(g: GameId, id: string): RobotSpec[] {
 export function loadDraft(g: GameId): RobotSpec {
   const d = loadJson<unknown>(draftKey(g), null);
   if (valid(d, g)) {
-    // One-time upgrade: an untouched old starter (all-omni 4-wheel) gets the new omni-front / traction-rear setup.
+    // One-time upgrade: an untouched starter drivetrain goes back to all-omni (symmetric, turns in place cleanly).
     const dr = d.drive;
-    const oldStarter =
-      dr.type === 'tank' && dr.wheelsPerSide === 2 && dr.wheelDia === 4 && dr.cartridge === 200 && dr.ratio === 1 && dr.omni.slice(0, 2).every((o) => o);
-    const flag = `draftV2:${g}`;
+    const starter = dr.type === 'tank' && dr.wheelsPerSide === 2 && dr.wheelDia === 4 && dr.cartridge === 200 && dr.ratio === 1 && dr.omni[0] === true;
+    const flag = `draftV3:${g}`;
     if (!loadJson<boolean>(flag, false)) {
-      saveJson(flag, true); // run once, so a later deliberate all-omni choice is kept
-      if (oldStarter && d.lift.type === 'arm' && d.effector.type === 'claw') {
-        d.drive.omni = [true, false, true, true];
+      saveJson(flag, true); // run once, so a later deliberate choice is kept
+      if (starter && d.lift.type === 'arm' && d.effector.type === 'claw') {
+        d.drive.omni = [true, true, true, true];
         saveDraft(d);
       }
     }

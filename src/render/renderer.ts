@@ -75,6 +75,11 @@ export class ZRenderer {
   private camLook = new THREE.Vector3();
   private camInit = false;
   private lastDraw = 0;
+  private guides = new THREE.Group();
+  private goalRing: THREE.Mesh;
+  private grabRing: THREE.Mesh;
+  private dropLine: THREE.Mesh;
+  private dropDot: THREE.Mesh;
   mode: CameraMode = 'driver';
   alliance: Alliance = 'red';
   fieldSize = 3.57;
@@ -102,6 +107,20 @@ export class ZRenderer {
     sc.far = 14;
     this.sun.shadow.bias = -0.0004;
     this.sun.shadow.normalBias = 0.02;
+    const guideMat = (c: number, o = 0.9) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false });
+    this.goalRing = new THREE.Mesh(new THREE.TorusGeometry(inToM(1.9), inToM(0.22), 8, 40), guideMat(0x3fdc7f));
+    this.grabRing = new THREE.Mesh(new THREE.TorusGeometry(inToM(2.3), inToM(0.14), 8, 40), guideMat(0xf2c230, 0.85));
+    const line = new THREE.CylinderGeometry(inToM(0.08), inToM(0.08), 1, 8);
+    line.rotateX(Math.PI / 2);
+    line.translate(0, 0, 0.5);
+    this.dropLine = new THREE.Mesh(line, guideMat(0xffffff, 0.55));
+    this.dropDot = new THREE.Mesh(new THREE.CircleGeometry(inToM(0.9), 24), guideMat(0xffffff, 0.35));
+    for (const m of [this.goalRing, this.grabRing, this.dropLine, this.dropDot]) {
+      m.renderOrder = 10;
+      m.visible = false;
+      this.guides.add(m);
+    }
+    this.root.add(this.guides);
     this.setQuality(quality);
   }
 
@@ -265,6 +284,27 @@ export class ZRenderer {
       (d.userData.spin as THREE.Group).rotation.x = lerpAngle(P[i], cur[i], a);
       i++;
     }
+  }
+
+  /** Placement / grab guides (engine coordinates, meters). Pass null to hide. */
+  setGuides(g: { goal: { x: number; y: number; z: number; ok: boolean } | null; drop: { x: number; y: number; z: number } | null; grab: { x: number; y: number; z: number } | null } | null): void {
+    const gr = g?.goal;
+    this.goalRing.visible = !!gr;
+    if (gr) {
+      this.goalRing.position.set(gr.x, gr.y, gr.z + 0.004);
+      (this.goalRing.material as THREE.MeshBasicMaterial).color.setHex(gr.ok ? 0x3fdc7f : 0xf2a93b);
+      this.goalRing.scale.setScalar(gr.ok ? 1.12 : 1);
+    }
+    const d = g?.drop;
+    this.dropLine.visible = this.dropDot.visible = !!d;
+    if (d) {
+      this.dropLine.position.set(d.x, d.y, 0);
+      this.dropLine.scale.set(1, 1, Math.max(0.001, d.z));
+      this.dropDot.position.set(d.x, d.y, 0.003);
+    }
+    const k = g?.grab;
+    this.grabRing.visible = !!k;
+    if (k) this.grabRing.position.set(k.x, k.y, 0.006);
   }
 
   // -------------------------------------------------------------------------------------------
